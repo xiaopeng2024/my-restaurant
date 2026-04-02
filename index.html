@@ -14,18 +14,29 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        body { -webkit-tap-highlight-color: transparent; }
+        body { -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-item { animation: fadeIn 0.4s ease-out forwards; }
     </style>
 </head>
-<body class="bg-neutral-50">
+<body class="bg-slate-50">
     <div id="root"></div>
 
     <script type="text/babel">
-        // 自动获取配置（在预览环境中自动填充，部署后请替换为你自己的 Firebase 配置）
-        const firebaseConfig = JSON.parse('__firebase_config'); 
-        const appId = '__app_id' || 'jx-xiaochao-stable';
+        // --- 核心配置：已填入你的 Firebase API ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCE1wcz-K1DrryDwP1vjuucK3D7GTc_V_I",
+            authDomain: "my-jx-xiaochao.firebaseapp.com",
+            projectId: "my-jx-xiaochao",
+            storageBucket: "my-jx-xiaochao.firebasestorage.app",
+            messagingSenderId: "588016316112",
+            appId: "1:588016316112:web:8dc9a6d451b29d5e4638d5"
+        };
 
-        firebase.initializeApp(firebaseConfig);
+        // 初始化 Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.firestore();
         const auth = firebase.auth();
 
@@ -35,7 +46,9 @@
             { id: 'm3', name: '余干辣椒炒肉', price: 32, icon: '🔥' },
             { id: 'm4', name: '井冈山豆干', price: 22, icon: '🍱' },
             { id: 'm5', name: '莲花血鸭', price: 48, icon: '🦆' },
-            { id: 'm6', name: '酸萝卜炒大肠', price: 38, icon: '🥘' }
+            { id: 'm6', name: '酸萝卜炒大肠', price: 38, icon: '🥘' },
+            { id: 'm7', name: '小炒黄牛肉', price: 42, icon: '🥩' },
+            { id: 'm8', name: '手撕包菜', price: 16, icon: '🥬' }
         ];
 
         const TABLES = ['1号桌', '2号桌', '3号桌', '4号桌', '5号桌', '中1号', '中2号', '666包厢', '888包厢'];
@@ -45,23 +58,26 @@
             const [selectedTable, setSelectedTable] = React.useState('');
             const [cart, setCart] = React.useState([]);
             const [orders, setOrders] = React.useState([]);
-            const [loading, setLoading] = React.useState(false);
+            const [submitting, setSubmitting] = React.useState(false);
 
+            // 实时同步订单数据
             React.useEffect(() => {
-                auth.signInAnonymously();
-                const unsubscribe = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('orders')
+                auth.signInAnonymously().catch(e => console.error("登录失败", e));
+                const unsubscribe = db.collection('orders')
                     .onSnapshot(snapshot => {
                         const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setOrders(docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-                    });
+                    }, err => console.error("数据同步错误", err));
                 return () => unsubscribe();
             }, []);
 
+            // 提交订单
             const handleSubmit = async () => {
-                if (!selectedTable || cart.length === 0) return;
-                setLoading(true);
+                if (!selectedTable) return alert('请先选择桌号！');
+                if (cart.length === 0) return alert('购物车是空的！');
+                setSubmitting(true);
                 try {
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('orders').add({
+                    await db.collection('orders').add({
                         table: selectedTable,
                         items: cart,
                         status: 'pending',
@@ -69,17 +85,13 @@
                     });
                     setCart([]);
                     setSelectedTable('');
-                    alert('下单成功！后厨正在准备。');
-                } finally { setLoading(false); }
+                    alert('下单成功！后厨已收到。');
+                } catch (e) {
+                    alert('提交失败，请检查数据库权限是否已设为测试模式。');
+                } finally { setSubmitting(false); }
             };
 
-            const toggleStatus = (id, currentStatus) => {
-                const next = currentStatus === 'pending' ? 'done' : 'delete';
-                const ref = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('orders').doc(id);
-                if (next === 'delete') ref.delete();
-                else ref.update({ status: 'done' });
-            };
-
+            // 后厨统计：将同名同口味的菜叠加
             const aggregated = React.useMemo(() => {
                 const map = {};
                 orders.filter(o => o.status === 'pending').forEach(o => {
@@ -93,72 +105,119 @@
                 return Object.values(map);
             }, [orders]);
 
+            const updateStatus = (id, currentStatus) => {
+                const ref = db.collection('orders').doc(id);
+                if (currentStatus === 'pending') ref.update({ status: 'done' });
+                else ref.delete();
+            };
+
             return (
-                <div className="max-w-xl mx-auto min-h-screen flex flex-col">
-                    <header className="bg-red-600 text-white p-4 flex justify-between items-center shadow-md">
-                        <h1 className="font-bold">江西小炒 · 实时点单</h1>
-                        <button onClick={() => setView(view === 'user' ? 'admin' : 'user')} className="text-xs bg-black/20 px-3 py-1 rounded-full">
-                            {view === 'user' ? '后台' : '前台'}
+                <div className="max-w-md mx-auto min-h-screen flex flex-col pb-20">
+                    <header className="bg-red-600 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-lg">
+                        <h1 className="font-bold text-lg tracking-tight">江西小炒 · 实时点餐</h1>
+                        <button onClick={() => setView(view === 'user' ? 'admin' : 'user')} className="text-xs bg-white/20 px-4 py-1.5 rounded-full font-bold">
+                            {view === 'user' ? '商家后台' : '返回点餐'}
                         </button>
                     </header>
 
                     {view === 'user' ? (
-                        <div className="p-4 space-y-6 pb-32">
-                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-neutral-100">
-                                <p className="text-xs font-bold text-neutral-400 mb-3">选择桌号</p>
+                        <div className="p-4 space-y-6">
+                            {/* 桌号选择 */}
+                            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+                                <p className="text-xs font-black text-slate-400 mb-4 uppercase tracking-widest">选择您的位置</p>
                                 <div className="grid grid-cols-3 gap-2">
                                     {TABLES.map(t => (
-                                        <button key={t} onClick={() => setSelectedTable(t)} className={`py-2 rounded-xl border text-sm font-bold ${selectedTable === t ? 'bg-red-600 text-white border-red-600' : 'bg-white border-neutral-100 text-neutral-600'}`}>{t}</button>
+                                        <button key={t} onClick={() => setSelectedTable(t)} className={`py-3 rounded-2xl border-2 font-bold text-sm transition-all ${selectedTable === t ? 'bg-red-600 text-white border-red-600 shadow-md scale-95' : 'bg-white border-slate-50 text-slate-500'}`}>{t}</button>
                                     ))}
                                 </div>
                             </div>
+
+                            {/* 菜单列表 */}
                             <div className="space-y-3">
                                 {MENU_DATA.map(item => {
                                     const inCart = cart.find(c => c.id === item.id);
                                     return (
-                                        <div key={item.id} className="bg-white p-4 rounded-2xl flex items-center gap-4 shadow-sm">
-                                            <div className="text-2xl">{item.icon}</div>
-                                            <div className="flex-1 font-bold">{item.name}<p className="text-red-600 font-black">¥{item.price}</p></div>
+                                        <div key={item.id} className="bg-white p-4 rounded-3xl flex items-center gap-4 shadow-sm border border-slate-50 animate-item">
+                                            <div className="text-3xl bg-slate-50 w-16 h-16 flex items-center justify-center rounded-2xl">{item.icon}</div>
+                                            <div className="flex-1 font-bold">
+                                                <div className="text-slate-800">{item.name}</div>
+                                                <div className="text-red-600 text-lg">¥{item.price}</div>
+                                            </div>
                                             <div className="flex items-center gap-3">
-                                                {inCart && <button onClick={() => setCart(cart.filter(c => c.id !== item.id))} className="w-8 h-8 rounded-full bg-neutral-100 text-neutral-400 flex items-center justify-center">-</button>}
-                                                {inCart && <span className="font-bold">{inCart.count}</span>}
+                                                {inCart && (
+                                                    <button onClick={() => {
+                                                        if(inCart.count === 1) setCart(cart.filter(c => c.id !== item.id));
+                                                        else setCart(cart.map(c => c.id === item.id ? {...c, count: c.count-1} : c));
+                                                    }} className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-bold">-</button>
+                                                )}
+                                                {inCart && <span className="font-bold text-lg">{inCart.count}</span>}
                                                 <button onClick={() => {
                                                     if(inCart) setCart(cart.map(c => c.id === item.id ? {...c, count: c.count+1} : c));
                                                     else setCart([...cart, {...item, count: 1, spicy: '中辣'}]);
-                                                }} className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shadow-md">+</button>
+                                                }} className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg font-bold">+</button>
                                             </div>
                                         </div>
                                     )
                                 })}
                             </div>
+
+                            {/* 浮动结算栏 */}
                             {cart.length > 0 && (
-                                <div className="fixed bottom-6 inset-x-4 bg-neutral-900 text-white p-4 rounded-full flex justify-between items-center shadow-2xl">
-                                    <div className="pl-4"><p className="text-xs opacity-50">总计</p><p className="text-xl font-black">¥{cart.reduce((s,i)=>s+i.price*i.count,0)}</p></div>
-                                    <button onClick={handleSubmit} disabled={loading} className="bg-red-600 px-8 py-3 rounded-full font-black">{loading ? '下单中...' : '提交订单'}</button>
+                                <div className="fixed bottom-6 inset-x-4 bg-slate-900 text-white p-5 rounded-[2rem] flex justify-between items-center shadow-2xl z-50">
+                                    <div className="pl-2">
+                                        <p className="text-xs opacity-50 font-bold uppercase">共 {cart.reduce((a,b)=>a+b.count,0)} 份菜</p>
+                                        <p className="text-2xl font-black">¥{cart.reduce((s,i)=>s+i.price*i.count,0)}</p>
+                                    </div>
+                                    <button onClick={handleSubmit} disabled={submitting} className="bg-red-600 px-10 py-4 rounded-2xl font-black text-lg active:scale-95 transition-transform">
+                                        {submitting ? '提交中...' : '下单'}
+                                    </button>
                                 </div>
                             )}
                         </div>
                     ) : (
                         <div className="p-4 space-y-6">
-                            <div className="bg-orange-500 p-6 rounded-3xl text-white">
-                                <h2 className="text-2xl font-black">待做汇总 ({aggregated.length})</h2>
+                            {/* 汇总看板 */}
+                            <div className="bg-orange-500 p-6 rounded-[2.5rem] text-white shadow-xl shadow-orange-100">
+                                <h2 className="text-2xl font-black flex items-center gap-2">👨‍🍳 待炒汇总</h2>
                                 <div className="mt-4 space-y-3">
-                                    {aggregated.map((task, i) => (
-                                        <div key={i} className="flex justify-between items-center bg-white/10 p-3 rounded-xl border border-white/10">
-                                            <div><p className="font-black text-xl">{task.name}</p><p className="text-xs opacity-70">{task.tables.join(', ')}</p></div>
-                                            <div className="text-3xl font-black">x{task.total}</div>
+                                    {aggregated.length === 0 ? <p className="opacity-70 font-bold italic">暂无待处理菜品</p> : 
+                                    aggregated.map((task, i) => (
+                                        <div key={i} className="flex justify-between items-center bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/10">
+                                            <div>
+                                                <p className="font-black text-xl">{task.name}</p>
+                                                <div className="flex gap-1 mt-1">
+                                                    {task.tables.map(t => <span key={t} className="text-[10px] bg-white/20 px-2 py-0.5 rounded-lg">{t}</span>)}
+                                                </div>
+                                            </div>
+                                            <div className="text-4xl font-black italic">x{task.total}</div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
+
+                            {/* 订单详细列表 */}
                             <div className="space-y-4">
+                                <h3 className="font-bold text-slate-400 px-2 uppercase text-xs tracking-widest">实时流水</h3>
                                 {orders.map(o => (
-                                    <div key={o.id} className={`p-4 rounded-2xl border-2 ${o.status === 'done' ? 'bg-neutral-100 opacity-50' : 'bg-white border-red-50'}`}>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="font-black bg-red-600 text-white px-3 py-1 rounded-lg">{o.table}</span>
-                                            <button onClick={() => toggleStatus(o.id, o.status)} className="p-2 rounded-lg bg-neutral-50">{o.status === 'pending' ? '✅ 完成' : '🗑️ 删除'}</button>
+                                    <div key={o.id} className={`p-5 rounded-[2rem] border-2 transition-all ${o.status === 'done' ? 'bg-slate-50 border-transparent opacity-40 grayscale' : 'bg-white border-red-50 shadow-sm'}`}>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="font-black bg-red-600 text-white px-4 py-1.5 rounded-xl text-lg shadow-md">{o.table}</span>
+                                            <div className="flex gap-2">
+                                                {o.status === 'pending' ? (
+                                                    <button onClick={() => updateStatus(o.id, 'pending')} className="bg-green-500 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg shadow-green-100 transition-colors active:bg-green-600">完成出菜</button>
+                                                ) : (
+                                                    <button onClick={() => updateStatus(o.id, 'done')} className="bg-slate-200 text-slate-500 px-4 py-2 rounded-xl font-bold text-sm transition-colors active:bg-red-500 active:text-white">彻底删除</button>
+                                                )}
+                                            </div>
                                         </div>
-                                        {o.items.map((i, idx) => <div key={idx} className="flex justify-between text-sm font-bold"><span>{i.name}</span><span>x{i.count}</span></div>)}
+                                        <div className="space-y-2">
+                                            {o.items.map((i, idx) => (
+                                                <div key={idx} className="flex justify-between font-bold text-slate-700">
+                                                    <span>{i.name}</span>
+                                                    <span>x{i.count}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -173,5 +232,17 @@
     </script>
 </body>
 </html>
+
+```
+### 接下来你要做什么？
+ 1. **保存代码**：在 GitHub 提交保存。
+ 2. **验证权限**：去 Firebase 的 **Firestore Database** -> **Rules** 确认一下规则是不是：
+   ```javascript
+   allow read, write: if true;
+   
+   
+   
+   ```
+```
 
 ```
