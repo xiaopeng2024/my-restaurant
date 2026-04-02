@@ -1,0 +1,177 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>江西小炒 · 在线点单</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        body { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-neutral-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // 自动获取配置（在预览环境中自动填充，部署后请替换为你自己的 Firebase 配置）
+        const firebaseConfig = JSON.parse('__firebase_config'); 
+        const appId = '__app_id' || 'jx-xiaochao-stable';
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        const MENU_DATA = [
+            { id: 'm1', name: '辣椒炒肉', price: 28, icon: '🌶️' },
+            { id: 'm2', name: '临川菜梗', price: 18, icon: '🌿' },
+            { id: 'm3', name: '余干辣椒炒肉', price: 32, icon: '🔥' },
+            { id: 'm4', name: '井冈山豆干', price: 22, icon: '🍱' },
+            { id: 'm5', name: '莲花血鸭', price: 48, icon: '🦆' },
+            { id: 'm6', name: '酸萝卜炒大肠', price: 38, icon: '🥘' }
+        ];
+
+        const TABLES = ['1号桌', '2号桌', '3号桌', '4号桌', '5号桌', '中1号', '中2号', '666包厢', '888包厢'];
+
+        function App() {
+            const [view, setView] = React.useState('user');
+            const [selectedTable, setSelectedTable] = React.useState('');
+            const [cart, setCart] = React.useState([]);
+            const [orders, setOrders] = React.useState([]);
+            const [loading, setLoading] = React.useState(false);
+
+            React.useEffect(() => {
+                auth.signInAnonymously();
+                const unsubscribe = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('orders')
+                    .onSnapshot(snapshot => {
+                        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setOrders(docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+                    });
+                return () => unsubscribe();
+            }, []);
+
+            const handleSubmit = async () => {
+                if (!selectedTable || cart.length === 0) return;
+                setLoading(true);
+                try {
+                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('orders').add({
+                        table: selectedTable,
+                        items: cart,
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    setCart([]);
+                    setSelectedTable('');
+                    alert('下单成功！后厨正在准备。');
+                } finally { setLoading(false); }
+            };
+
+            const toggleStatus = (id, currentStatus) => {
+                const next = currentStatus === 'pending' ? 'done' : 'delete';
+                const ref = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('orders').doc(id);
+                if (next === 'delete') ref.delete();
+                else ref.update({ status: 'done' });
+            };
+
+            const aggregated = React.useMemo(() => {
+                const map = {};
+                orders.filter(o => o.status === 'pending').forEach(o => {
+                    o.items.forEach(i => {
+                        const key = `${i.name}-${i.spicy}`;
+                        if (!map[key]) map[key] = { ...i, total: 0, tables: [] };
+                        map[key].total += i.count;
+                        if (!map[key].tables.includes(o.table)) map[key].tables.push(o.table);
+                    });
+                });
+                return Object.values(map);
+            }, [orders]);
+
+            return (
+                <div className="max-w-xl mx-auto min-h-screen flex flex-col">
+                    <header className="bg-red-600 text-white p-4 flex justify-between items-center shadow-md">
+                        <h1 className="font-bold">江西小炒 · 实时点单</h1>
+                        <button onClick={() => setView(view === 'user' ? 'admin' : 'user')} className="text-xs bg-black/20 px-3 py-1 rounded-full">
+                            {view === 'user' ? '后台' : '前台'}
+                        </button>
+                    </header>
+
+                    {view === 'user' ? (
+                        <div className="p-4 space-y-6 pb-32">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-neutral-100">
+                                <p className="text-xs font-bold text-neutral-400 mb-3">选择桌号</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {TABLES.map(t => (
+                                        <button key={t} onClick={() => setSelectedTable(t)} className={`py-2 rounded-xl border text-sm font-bold ${selectedTable === t ? 'bg-red-600 text-white border-red-600' : 'bg-white border-neutral-100 text-neutral-600'}`}>{t}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                {MENU_DATA.map(item => {
+                                    const inCart = cart.find(c => c.id === item.id);
+                                    return (
+                                        <div key={item.id} className="bg-white p-4 rounded-2xl flex items-center gap-4 shadow-sm">
+                                            <div className="text-2xl">{item.icon}</div>
+                                            <div className="flex-1 font-bold">{item.name}<p className="text-red-600 font-black">¥{item.price}</p></div>
+                                            <div className="flex items-center gap-3">
+                                                {inCart && <button onClick={() => setCart(cart.filter(c => c.id !== item.id))} className="w-8 h-8 rounded-full bg-neutral-100 text-neutral-400 flex items-center justify-center">-</button>}
+                                                {inCart && <span className="font-bold">{inCart.count}</span>}
+                                                <button onClick={() => {
+                                                    if(inCart) setCart(cart.map(c => c.id === item.id ? {...c, count: c.count+1} : c));
+                                                    else setCart([...cart, {...item, count: 1, spicy: '中辣'}]);
+                                                }} className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shadow-md">+</button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            {cart.length > 0 && (
+                                <div className="fixed bottom-6 inset-x-4 bg-neutral-900 text-white p-4 rounded-full flex justify-between items-center shadow-2xl">
+                                    <div className="pl-4"><p className="text-xs opacity-50">总计</p><p className="text-xl font-black">¥{cart.reduce((s,i)=>s+i.price*i.count,0)}</p></div>
+                                    <button onClick={handleSubmit} disabled={loading} className="bg-red-600 px-8 py-3 rounded-full font-black">{loading ? '下单中...' : '提交订单'}</button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="p-4 space-y-6">
+                            <div className="bg-orange-500 p-6 rounded-3xl text-white">
+                                <h2 className="text-2xl font-black">待做汇总 ({aggregated.length})</h2>
+                                <div className="mt-4 space-y-3">
+                                    {aggregated.map((task, i) => (
+                                        <div key={i} className="flex justify-between items-center bg-white/10 p-3 rounded-xl border border-white/10">
+                                            <div><p className="font-black text-xl">{task.name}</p><p className="text-xs opacity-70">{task.tables.join(', ')}</p></div>
+                                            <div className="text-3xl font-black">x{task.total}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                {orders.map(o => (
+                                    <div key={o.id} className={`p-4 rounded-2xl border-2 ${o.status === 'done' ? 'bg-neutral-100 opacity-50' : 'bg-white border-red-50'}`}>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="font-black bg-red-600 text-white px-3 py-1 rounded-lg">{o.table}</span>
+                                            <button onClick={() => toggleStatus(o.id, o.status)} className="p-2 rounded-lg bg-neutral-50">{o.status === 'pending' ? '✅ 完成' : '🗑️ 删除'}</button>
+                                        </div>
+                                        {o.items.map((i, idx) => <div key={idx} className="flex justify-between text-sm font-bold"><span>{i.name}</span><span>x{i.count}</span></div>)}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
+```
