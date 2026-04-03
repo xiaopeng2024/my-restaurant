@@ -3,181 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>江西小炒 · 智慧餐饮管理系统</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <title>江西小炒 · 数字化云端管理</title>
+    <script src="https://cdn.staticfile.org/tailwind-css/2.2.19/tailwind.min.js"></script>
+    <script src="https://web-99.cdn.cloudbase.net/sdk/2.8.0/cloudbase.full.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans SC', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f4f6f9; }
-        .tab-active { background-color: #dc2626 !important; color: white !important; border-color: #dc2626 !important; }
-        .category-btn.active { background-color: #dc2626; color: white; transform: scale(1.05); }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .dish-done { text-decoration: line-through; opacity: 0.3; filter: grayscale(1); }
+        .category-active { background-color: #dc2626; color: white; transform: scale(1.05); }
+        @keyframes pulse { 0%, 100% { border-color: #dc2626; } 50% { border-color: transparent; } }
+        .urgent-border { border: 3px solid #dc2626; animation: pulse 1s infinite; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .done-line { text-decoration: line-through; opacity: 0.4; }
-        @keyframes notify-pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } }
-        .pulse-red { animation: notify-pulse 1.5s infinite; }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="flex flex-col min-h-screen select-none">
 
-    <div id="app" class="min-h-screen flex flex-col">
-        <!-- 导航头 -->
-        <header class="bg-red-600 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <span class="text-2xl">🔥</span>
-                <h1 class="text-lg font-black tracking-tighter">江西小炒 · 智慧厨房</h1>
-            </div>
-            <div class="flex bg-black/20 rounded-full p-1 border border-white/10 text-[10px]">
-                <button onclick="setView('user')" id="nav-user" class="px-4 py-1.5 rounded-full bg-white text-red-600 font-bold">点餐端</button>
-                <button onclick="checkAdmin()" id="nav-admin" class="px-4 py-1.5 rounded-full text-white/70 font-bold">后厨端</button>
-            </div>
-        </header>
-
-        <!-- 主内容区 -->
-        <main id="main-content" class="flex-1 overflow-y-auto pb-32"></main>
-
-        <!-- 客户端悬浮车 -->
-        <div id="cart-float" class="fixed bottom-6 left-4 right-4 max-w-lg mx-auto bg-gray-900 text-white p-4 rounded-[2rem] shadow-2xl flex justify-between items-center hidden z-40">
-            <div class="pl-2">
-                <p id="cart-table-tag" class="text-[9px] text-gray-500 font-black uppercase tracking-widest">请选桌号</p>
-                <p id="cart-price-tag" class="text-xl font-black text-red-500 italic">¥ 0</p>
-            </div>
-            <button onclick="doSubmit()" id="submit-btn" class="bg-red-600 px-8 py-3 rounded-xl font-black text-sm active:scale-90 transition-all">确认下单</button>
+    <header class="bg-red-600 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
+        <div class="flex items-center gap-2">
+            <span class="text-2xl">🏮</span>
+            <h1 class="text-lg font-black italic tracking-tighter">江西小炒 PRO</h1>
         </div>
-    </div>
+        <div class="flex bg-black/20 rounded-full p-1 text-[10px] font-bold">
+            <button onclick="switchView('user')" id="nav-user" class="px-5 py-1.5 rounded-full bg-white text-red-600">点餐端</button>
+            <button onclick="switchView('admin')" id="nav-admin" class="px-5 py-1.5 rounded-full text-white/70">后厨端</button>
+        </div>
+    </header>
 
-    <!-- 弹窗组件 -->
-    <div id="modal-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden" id="modal-body"></div>
+    <main id="main" class="flex-1 pb-32 overflow-y-auto"></main>
+
+    <div id="cart-bar" class="fixed bottom-6 left-4 right-4 bg-gray-900 text-white p-5 rounded-[2.5rem] shadow-2xl flex justify-between items-center hidden z-40">
+        <div>
+            <p id="cart-info" class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">确认桌号</p>
+            <p id="cart-price" class="text-2xl font-black text-red-500 italic">¥ 0</p>
+        </div>
+        <button onclick="submitOrder()" id="submit-btn" class="bg-red-600 px-10 py-3 rounded-2xl font-black text-sm active:scale-95 transition-all">确认下单</button>
     </div>
 
     <script>
-        // --- 基础配置 ---
-        const firebaseConfig = { apiKey: "", authDomain: "my-jx-xiaochao.firebaseapp.com", projectId: "my-jx-xiaochao" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const ADMIN_PWD = "888888";
+        // --- 1. 腾讯云开发初始化 (已注入您的凭证) ---
+        const envId = "my-jxxc-6g4w7jse94653bcc";
+        const app = cloudbase.init({
+            env: envId
+        });
+        
+        // 使用匿名登录模式（适合扫码即点）
+        const auth = app.auth();
+        async function login() {
+            if (!auth.hasLoginState()) {
+                await auth.anonymousAuthProvider().signIn();
+            }
+        }
+        login();
 
-        const MENU_DATA = {
-            "特色招牌区": [{ id: 101, name: '瓦罐煨汤', price: 15, icon: '🥣' }, { id: 102, name: '井冈山豆皮', price: 26, icon: '🥘' }, { id: 103, name: '南昌拌粉', price: 12, icon: '🍜' }],
-            "荤菜区": [{ id: 1, name: '辣椒炒肉', price: 28, icon: '🌶️' }, { id: 3, name: '小炒黄牛肉', price: 42, icon: '🥩' }],
-            "蔬菜区": [{ id: 5, name: '临川菜梗', price: 18, icon: '🌿' }, { id: 6, name: '手撕包菜', price: 16, icon: '🥬' }],
-            "干锅区": [{ id: 8, name: '干锅肥肠', price: 45, icon: '🍲' }],
-            "饮料区": [{ id: 11, name: '王老吉', price: 5, icon: '🥤' }],
-            "酒水区": [{ id: 14, name: '青岛啤酒', price: 8, icon: '🍺' }],
-            "米饭区": [{ id: 16, name: '白米饭', price: 2, icon: '🍚', isRice: true }]
-        };
+        const db = app.database();
+        const _ = db.command;
 
-        const TABLES = {
-            "堂食": ["1", "2", "3", "4", "5", "6", "7", "中1号", "中2号", "666小包", "888大包"],
-            "打包": ["打包1", "打包2", "打包3", "打包4"],
-            "排队": ["排队1", "排队2"]
+        // --- 2. 业务配置 ---
+        const MENU = {
+            "爆炒荤菜": [{ id: 1, name: '辣椒炒肉', price: 28, icon: '🌶️' }, { id: 2, name: '小炒牛肉', price: 45, icon: '🥩' }, { id: 3, name: '酸萝卜肥肠', price: 38, icon: '🥘' }],
+            "清爽蔬菜": [{ id: 5, name: '手撕包菜', price: 16, icon: '🥬' }, { id: 6, name: '临川菜梗', price: 18, icon: '🌿' }],
+            "特色主食": [{ id: 10, name: '南昌拌粉', price: 12, icon: '🍜' }, { id: 11, name: '瓦罐煨汤', price: 15, icon: '🥣' }, { id: 12, name: '白米饭', price: 2, icon: '🍚', isRice: true }]
         };
+        const TABLES = ["1号", "2号", "3号", "5号", "6号", "7号", "大包厢", "打包1", "打包2"];
 
         let state = {
-            view: 'user', // user | admin | finance
+            view: 'user',
             table: '',
             cart: [],
+            category: '爆炒荤菜',
             orders: [],
-            activeCategory: '特色招牌区',
-            financeTab: 'day' // day | month | year | history
+            history: []
         };
 
-        // --- 核心逻辑 ---
+        // --- 3. 核心交互 ---
+        async function refreshData() {
+            try {
+                // 拉取进行中的订单
+                const res = await db.collection('orders').orderBy('time', 'desc').get();
+                state.orders = res.data;
+                
+                // 如果是财务页，拉取流水
+                if (state.view === 'finance') {
+                    const hisRes = await db.collection('history').orderBy('time', 'desc').limit(50).get();
+                    state.history = hisRes.data;
+                }
+                render();
+            } catch (e) { console.error("数据同步失败", e); }
+        }
 
-        function setView(v) {
+        function speak(text) {
+            if (window.speechSynthesis) {
+                const msg = new SpeechSynthesisUtterance(text);
+                msg.lang = 'zh-CN';
+                window.speechSynthesis.speak(msg);
+            }
+        }
+
+        function switchView(v) {
             state.view = v;
-            document.getElementById('nav-user').className = v === 'user' ? "px-4 py-1.5 rounded-full bg-white text-red-600 font-bold" : "px-4 py-1.5 rounded-full text-white/70 font-bold";
-            document.getElementById('nav-admin').className = (v === 'admin' || v === 'finance') ? "px-4 py-1.5 rounded-full bg-white text-red-600 font-bold" : "px-4 py-1.5 rounded-full text-white/70 font-bold";
-            render();
+            document.getElementById('nav-user').className = v === 'user' ? "px-5 py-1.5 rounded-full bg-white text-red-600 shadow-sm" : "px-5 py-1.5 rounded-full text-white/70";
+            document.getElementById('nav-admin').className = (v === 'admin' || v === 'finance') ? "px-5 py-1.5 rounded-full bg-white text-red-600 shadow-sm" : "px-5 py-1.5 rounded-full text-white/70";
+            refreshData();
         }
 
-        function checkAdmin() {
-            if(state.view === 'admin' || state.view === 'finance') return;
-            const p = prompt("进入后厨端需输入密码:");
-            if(p === ADMIN_PWD) setView('admin');
-            else if(p !== null) alert("密码错误！");
-        }
-
-        function setTable(t) { state.table = t; render(); }
-        function setCategory(c) { state.activeCategory = c; render(); }
-
-        function calculatePacking(table, items) {
-            if (!table.startsWith('打包')) return 0;
-            return items.filter(i => !i.isRice).reduce((s, i) => s + i.count, 0);
-        }
-
-        // --- 渲染引擎 ---
-
+        // --- 4. 渲染逻辑 ---
         function render() {
-            const container = document.getElementById('main-content');
-            const cartFloat = document.getElementById('cart-float');
+            const container = document.getElementById('main');
+            const cartBar = document.getElementById('cart-bar');
 
             if (state.view === 'user') {
-                cartFloat.style.display = state.cart.length > 0 ? 'flex' : 'none';
+                cartBar.style.display = state.cart.length > 0 ? 'flex' : 'none';
                 renderUser(container);
             } else if (state.view === 'admin') {
-                cartFloat.style.display = 'none';
+                cartBar.style.display = 'none';
                 renderAdmin(container);
-            } else if (state.view === 'finance') {
+            } else {
+                cartBar.style.display = 'none';
                 renderFinance(container);
             }
         }
 
         function renderUser(container) {
-            const currentTotal = state.cart.reduce((s, i) => s + i.price * i.count, 0) + calculatePacking(state.table, state.cart);
-            document.getElementById('cart-table-tag').innerText = state.table ? `${state.table} 号桌` : '请选桌号';
-            document.getElementById('cart-price-tag').innerText = `¥ ${currentTotal}`;
+            const packing = state.table.includes('打包') ? state.cart.filter(i => !i.isRice).length : 0;
+            const subtotal = state.cart.reduce((s, i) => s + i.price, 0);
+            document.getElementById('cart-info').innerText = state.table ? `${state.table} (打包费¥${packing})` : '请先选桌号';
+            document.getElementById('cart-price').innerText = `¥ ${subtotal + packing}`;
 
             container.innerHTML = `
-                <div class="p-4 space-y-4">
-                    <!-- 桌号选择 -->
-                    <div class="bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
-                        <p class="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest">座次安排</p>
-                        <div class="flex flex-wrap gap-2">
-                            ${Object.values(TABLES).flat().map(t => `
-                                <button onclick="setTable('${t}')" class="px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${state.table === t ? 'bg-red-600 border-red-600 text-white' : 'bg-gray-50 border-transparent text-gray-400'}">${t}</button>
-                            `).join('')}
-                        </div>
+                <div class="p-4 space-y-5">
+                    <div class="bg-white p-4 rounded-3xl shadow-sm flex gap-2 overflow-x-auto no-scrollbar">
+                        ${TABLES.map(t => `<button onclick="state.table='${t}';render()" class="px-5 py-2.5 rounded-xl text-xs font-black border flex-shrink-0 transition-all ${state.table === t ? 'bg-red-600 border-red-600 text-white' : 'bg-gray-50 border-transparent text-gray-400'}">${t}</button>`).join('')}
                     </div>
-
-                    <!-- 分类与菜品 -->
                     <div class="flex gap-4">
-                        <div class="w-20 space-y-2 flex-shrink-0">
-                            ${Object.keys(MENU_DATA).map(c => `
-                                <button onclick="setCategory('${c}')" class="w-full py-3 rounded-xl text-[10px] font-black transition-all ${state.activeCategory === c ? 'bg-red-600 text-white' : 'text-gray-400'}">${c.replace('区','')}</button>
-                            `).join('')}
+                        <div class="w-16 space-y-2">
+                            ${Object.keys(MENU).map(c => `<button onclick="state.category='${c}';render()" class="w-full py-5 rounded-2xl text-[10px] font-black leading-tight ${state.category === c ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400'}">${c}</button>`).join('')}
                         </div>
                         <div class="flex-1 grid gap-2">
-                            ${MENU_DATA[state.activeCategory].map(i => {
-                                const count = state.cart.filter(c => c.id === i.id).reduce((s,c)=>s+c.count, 0);
-                                return `
-                                    <div class="bg-white p-3 rounded-2xl flex items-center justify-between shadow-sm">
-                                        <div class="flex items-center gap-3">
-                                            <span class="text-2xl">${i.icon}</span>
-                                            <div><p class="text-xs font-black text-gray-800">${i.name}</p><p class="text-red-500 font-black text-xs italic">¥${i.price}</p></div>
-                                        </div>
-                                        <button onclick="addToCart(${i.id}, '${state.activeCategory}')" class="bg-red-600 text-white w-8 h-8 rounded-full font-black text-lg">+</button>
+                            ${MENU[state.category].map(i => `
+                                <div onclick="addToCart(${i.id})" class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm active:scale-95 transition-all">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-2xl">${i.icon}</span>
+                                        <div><p class="font-black text-sm text-gray-800">${i.name}</p><p class="text-red-600 font-black text-xs italic">¥${i.price}</p></div>
                                     </div>
-                                `;
-                            }).join('')}
+                                    <div class="bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center font-black text-gray-400">+</div>
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
-
-                    <!-- 我的订单 -->
-                    <div class="mt-8 space-y-3">
-                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest px-2">点单进度</h3>
+                    <div class="mt-10">
+                        <h3 class="text-[10px] font-black text-gray-400 px-2 mb-3 tracking-widest uppercase">我的订单进度</h3>
                         ${state.orders.filter(o => o.table === state.table && state.table).map(o => `
-                            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-                                <div class="flex justify-between mb-3">
-                                    <span class="text-[10px] font-black ${o.status==='pending'?'text-orange-500':'text-green-600'}">${o.status==='pending'?'待接单':'火热制作中'}</span>
-                                    <span class="font-black text-red-600 italic">¥${o.finalTotal}</span>
+                            <div class="bg-white p-6 rounded-[2rem] border border-gray-100 mb-3 shadow-sm">
+                                <div class="flex justify-between mb-4">
+                                    <span class="text-[10px] font-black ${o.status==='pending'?'text-orange-500':'text-green-600'}">${o.status==='pending'?'厨师待接单...':'主厨爆炒中🔥'}</span>
+                                    <span class="text-lg font-black text-red-600 italic">¥${o.total}</span>
                                 </div>
-                                <div class="space-y-2">
-                                    ${o.items.map((i, idx) => `
+                                <div class="space-y-3">
+                                    ${o.items.map((it, idx) => `
                                         <div class="flex justify-between items-center text-xs">
-                                            <span class="font-bold ${i.isDone?'done-line':''} ${i.refundPending?'text-orange-400':''}">${i.name} x${i.count} ${i.refundPending?'(退菜中)':''}</span>
-                                            ${(!i.isDone && !i.refundPending) ? `<button onclick="applyRefund('${o.id}', ${idx})" class="text-[9px] text-gray-300 font-bold underline">退菜</button>`:''}
+                                            <span class="font-bold ${it.done?'dish-done text-gray-300':''} ${it.refunding?'text-red-400':''}">${it.name}</span>
+                                            ${(!it.done && !it.refunding) ? `<button onclick="applyRefund('${o._id}', ${idx})" class="text-[10px] text-gray-300 underline font-bold">退菜</button>`:''}
                                         </div>
                                     `).join('')}
                                 </div>
@@ -190,74 +174,58 @@
 
         function renderAdmin(container) {
             container.innerHTML = `
-                <div class="p-4 space-y-6">
-                    <div class="flex gap-2">
-                        <button onclick="setView('admin')" class="flex-1 bg-gray-900 text-white py-4 rounded-2xl font-black shadow-lg">厨房传菜</button>
-                        <button onclick="setView('finance')" class="flex-1 bg-white text-gray-900 py-4 rounded-2xl font-black shadow-sm">财务报表</button>
+                <div class="p-4 space-y-4">
+                    <div class="flex gap-2 mb-2">
+                        <button onclick="switchView('admin')" class="flex-1 py-4 rounded-2xl bg-gray-900 text-white font-black text-xs shadow-lg">制作看板</button>
+                        <button onclick="switchView('finance')" class="flex-1 py-4 rounded-2xl bg-white text-gray-400 border border-gray-100 font-black text-xs">流水对账</button>
                     </div>
-
-                    <div class="grid gap-4">
-                        ${state.orders.map(o => `
-                            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm relative border-2 ${o.status==='pending'?'border-red-500 pulse-red':'border-transparent'}">
-                                <div class="flex justify-between items-start mb-4">
-                                    <span class="bg-black text-white px-4 py-1 rounded-xl font-black text-sm">${o.table}</span>
-                                    <span class="text-lg font-black text-red-600">¥${o.finalTotal}</span>
-                                </div>
-                                <div class="space-y-3 mb-6">
-                                    ${o.items.map((i, idx) => `
-                                        <div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                            <div onclick="toggleItemDone('${o.id}', ${idx})" class="flex-1 cursor-pointer">
-                                                <p class="text-sm font-black ${i.isDone?'done-line':''}">${i.name} x${i.count}</p>
-                                                <p class="text-[9px] text-gray-400 font-bold">${i.spicy} ${i.note||''}</p>
-                                            </div>
-                                            <div class="flex items-center gap-3">
-                                                ${i.refundPending ? `
-                                                    <button onclick="handleRefund('${o.id}', ${idx}, true)" class="text-[10px] bg-red-600 text-white px-3 py-1 rounded-lg font-bold">同意退菜</button>
-                                                    <button onclick="handleRefund('${o.id}', ${idx}, false)" class="text-[10px] bg-gray-200 text-gray-500 px-3 py-1 rounded-lg font-bold">拒绝</button>
-                                                ` : `
-                                                    <button onclick="removeItem('${o.id}', ${idx})" class="text-gray-300">🗑️</button>
-                                                `}
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                <div class="flex gap-2">
-                                    ${o.status==='pending' ? `
-                                        <button onclick="updateStatus('${o.id}', 'cooking')" class="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black">接单</button>
-                                    ` : `
-                                        <button onclick="finishOrder('${o.id}')" class="flex-1 bg-gray-900 text-white py-4 rounded-2xl font-black">全部上齐 · 结账并存档</button>
-                                    `}
-                                </div>
+                    ${state.orders.map(o => `
+                        <div class="bg-white p-6 rounded-[2.5rem] shadow-sm relative ${o.status==='pending'?'urgent-border':''}">
+                            <div class="flex justify-between items-center mb-5">
+                                <span class="bg-black text-white px-5 py-1.5 rounded-xl font-black text-xs">${o.table}</span>
+                                <span class="text-xl font-black text-red-600 italic">¥${o.total}</span>
                             </div>
-                        `).join('')}
-                    </div>
+                            <div class="space-y-2 mb-6">
+                                ${o.items.map((it, idx) => `
+                                    <div class="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
+                                        <span onclick="toggleDone('${o._id}', ${idx})" class="text-sm font-black ${it.done?'dish-done':''} cursor-pointer flex-1">${it.name}</span>
+                                        ${it.refunding ? `
+                                            <div class="flex gap-2">
+                                                <button onclick="doRefund('${o._id}', ${idx}, true)" class="bg-red-600 text-white px-4 py-1.5 rounded-xl text-[10px] font-black">同意退菜</button>
+                                                <button onclick="doRefund('${o._id}', ${idx}, false)" class="bg-gray-200 text-gray-400 px-4 py-1.5 rounded-xl text-[10px] font-black">拒绝</button>
+                                            </div>
+                                        ` : `<button onclick="adminDelete('${o._id}', ${idx})" class="text-gray-300 px-2">🗑️</button>`}
+                                    </div>
+                                `).join('')}
+                            </div>
+                            ${o.status==='pending' ? 
+                                `<button onclick="startCooking('${o._id}')" class="w-full bg-red-600 text-white py-5 rounded-[1.5rem] font-black shadow-xl shadow-red-100">接单并准备制作</button>` :
+                                `<button onclick="finishOrder('${o._id}')" class="w-full bg-gray-900 text-white py-5 rounded-[1.5rem] font-black">已上齐 · 结账存档</button>`
+                            }
+                        </div>
+                    `).join('')}
+                    ${state.orders.length === 0 ? '<div class="py-20 text-center text-gray-300 font-black">当前无待处理订单</div>' : ''}
                 </div>
             `;
         }
 
         function renderFinance(container) {
             const today = new Date().toLocaleDateString();
-            // 注意：这里仅展示已结账存档的数据。实际应从archive集合读取。这里为演示从orders当前状态模拟历史。
-            const total = state.orders.reduce((s,o)=>s+o.finalTotal,0);
-
+            const dayRev = state.history.filter(h => new Date(h.time).toLocaleDateString() === today).reduce((s,o)=>s+o.total, 0);
             container.innerHTML = `
-                <div class="p-4 space-y-4">
-                    <button onclick="setView('admin')" class="text-xs font-black text-gray-400 flex items-center gap-1">← 返回厨房</button>
-                    <div class="bg-gray-900 p-8 rounded-[3rem] text-white shadow-2xl">
-                        <p class="text-[10px] font-bold opacity-40 uppercase tracking-[0.2em] mb-1">Total Revenue</p>
-                        <h2 class="text-5xl font-black italic text-red-500 tracking-tighter">¥${total.toFixed(2)}</h2>
-                        <div class="mt-6 flex bg-white/5 p-1 rounded-xl text-[10px] font-black">
-                            <button class="flex-1 py-2 rounded-lg bg-white text-black">今日</button>
-                            <button class="flex-1 py-2 text-white/40">本月</button>
-                            <button class="flex-1 py-2 text-white/40">本年</button>
-                        </div>
+                <div class="p-4 space-y-5">
+                    <button onclick="switchView('admin')" class="text-xs font-black text-gray-400 flex items-center gap-1">← 返回看板</button>
+                    <div class="bg-gray-900 p-8 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
+                        <div class="absolute -top-10 -right-10 w-40 h-40 bg-red-600 rounded-full blur-3xl opacity-20"></div>
+                        <p class="text-[10px] opacity-40 font-black uppercase tracking-widest mb-1 relative z-10">今日流水额</p>
+                        <h2 class="text-5xl font-black italic text-red-500 tracking-tighter relative z-10">¥${dayRev.toFixed(2)}</h2>
                     </div>
                     <div class="space-y-2">
-                        <h3 class="text-xs font-black text-gray-400 px-2">流水明细</h3>
-                        ${state.orders.map(o => `
-                            <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm">
-                                <div><p class="text-xs font-black">${o.table}</p><p class="text-[9px] text-gray-300">${new Date(o.createdAt?.seconds*1000).toLocaleString()}</p></div>
-                                <p class="text-sm font-black text-red-600">+ ¥${o.finalTotal}</p>
+                        <h3 class="text-[10px] font-black text-gray-400 px-2 tracking-widest uppercase">最近账单明细</h3>
+                        ${state.history.map(h => `
+                            <div class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm">
+                                <div><p class="text-xs font-black">${h.table}</p><p class="text-[9px] text-gray-300 font-bold">${new Date(h.time).toLocaleString()}</p></div>
+                                <span class="text-red-600 font-black text-sm italic">¥${h.total}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -265,144 +233,95 @@
             `;
         }
 
-        // --- 业务操作 ---
-
-        function addToCart(id, cat) {
-            const item = MENU_DATA[cat].find(m => m.id == id);
-            state.cart.push({...item, count: 1, spicy: '中辣', isDone: false});
+        // --- 5. 业务逻辑实现 ---
+        function addToCart(id) {
+            for(let c in MENU) {
+                const f = MENU[c].find(i=>i.id===id);
+                if(f) { state.cart.push({...f}); break; }
+            }
             render();
         }
 
-        async function doSubmit() {
-            if(!state.table) return alert("请选桌号");
-            const btn = document.getElementById('submit-btn');
-            const { total, packingFee } = calculateCart();
-            btn.disabled = true;
-            try {
-                await db.collection('orders').add({
-                    table: state.table,
-                    items: state.cart,
-                    finalTotal: total,
-                    packingFee: packingFee,
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                state.cart = [];
-                alert("下单成功！");
-                render();
-            } catch(e) { alert("失败"); }
-            finally { btn.disabled = false; }
-        }
-
-        function calculateCart() {
-            const total = state.cart.reduce((s, i) => s + i.price * i.count, 0);
-            const packingFee = calculatePacking(state.table, state.cart);
-            return { total: total + packingFee, packingFee };
-        }
-
-        // --- 菜品状态与退菜控制 ---
-
-        async function toggleItemDone(orderId, itemIdx) {
-            const order = state.orders.find(o => o.id === orderId);
-            order.items[itemIdx].isDone = !order.items[itemIdx].isDone;
-            await db.collection('orders').doc(orderId).update({ items: order.items });
-        }
-
-        async function removeItem(orderId, itemIdx) {
-            const order = state.orders.find(o => o.id === orderId);
-            order.items.splice(itemIdx, 1);
-            if(order.items.length === 0) {
-                await db.collection('orders').doc(orderId).delete();
-            } else {
-                // 重新计算总额（含打包费）
-                const packing = calculatePacking(order.table, order.items);
-                const subTotal = order.items.reduce((s,i)=>s+i.price*i.count,0);
-                await db.collection('orders').doc(orderId).update({ 
-                    items: order.items, 
-                    finalTotal: subTotal + packing,
-                    packingFee: packing
-                });
-            }
-        }
-
-        async function applyRefund(orderId, itemIdx) {
-            const order = state.orders.find(o => o.id === orderId);
-            order.items[itemIdx].refundPending = true;
-            await db.collection('orders').doc(orderId).update({ items: order.items });
-            alert("已提交退菜申请，请等待后厨确认。");
-        }
-
-        async function handleRefund(orderId, itemIdx, approved) {
-            const order = state.orders.find(o => o.id === orderId);
-            if (approved) {
-                order.items.splice(itemIdx, 1);
-                if(order.items.length === 0) {
-                    await db.collection('orders').doc(orderId).delete();
-                } else {
-                    const packing = calculatePacking(order.table, order.items);
-                    const subTotal = order.items.reduce((s,i)=>s+i.price*i.count,0);
-                    await db.collection('orders').doc(orderId).update({ 
-                        items: order.items, 
-                        finalTotal: subTotal + packing,
-                        packingFee: packing
-                    });
-                }
-                speak(`已确认桌号 ${order.table} 的退菜请求`);
-            } else {
-                delete order.items[itemIdx].refundPending;
-                await db.collection('orders').doc(orderId).update({ items: order.items });
-                speak(`已拒绝退菜请求`);
-            }
-        }
-
-        async function updateStatus(id, s) { 
-            await db.collection('orders').doc(id).update({ status: s });
-        }
-
-        async function finishOrder(id) {
-            if(confirm("确定已收钱结账？此操作将存档并清理本桌。")) {
-                await db.collection('orders').doc(id).delete();
-            }
-        }
-
-        // --- 语音与监听 ---
-
-        function speak(t) {
-            if('speechSynthesis' in window) {
-                const u = new SpeechSynthesisUtterance(t);
-                u.lang = 'zh-CN';
-                window.speechSynthesis.speak(u);
-            }
-        }
-
-        db.collection('orders').onSnapshot(snap => {
-            const list = snap.docs.map(doc => ({id: doc.id, ...doc.data()}))
-                .sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        async function submitOrder() {
+            if(!state.table) return alert("请先选择桌号");
+            const packing = state.table.includes('打包') ? state.cart.filter(i => !i.isRice).length : 0;
+            const subtotal = state.cart.reduce((s, i) => s + i.price, 0);
             
-            if (state.view === 'admin') {
-                const newPending = list.filter(o => o.status === 'pending').length;
-                if (newPending > state.lastUnconfirmed) {
-                    const last = list.find(o => o.status === 'pending');
-                    speak(`新单提醒：${last.table}点餐了`);
-                }
-                
-                // 检查是否有新的退菜申请
-                list.forEach(o => {
-                    if (o.items.some(i => i.refundPending)) {
-                        const oldOrder = state.orders.find(old => old.id === o.id);
-                        const oldRefunds = oldOrder ? oldOrder.items.filter(i => i.refundPending).length : 0;
-                        const newRefunds = o.items.filter(i => i.refundPending).length;
-                        if(newRefunds > oldRefunds) speak(`退菜警告：${o.table}请求退菜`);
-                    }
-                });
-            }
+            await db.collection('orders').add({
+                table: state.table,
+                items: state.cart.map(i => ({...i, done: false, refunding: false})),
+                total: subtotal + packing,
+                status: 'pending',
+                time: Date.now()
+            });
+            state.cart = [];
+            speak(`新订单提醒，${state.table}号桌点餐。`);
+            refreshData();
+        }
 
-            state.lastUnconfirmed = list.filter(o => o.status === 'pending').length;
-            state.orders = list;
+        async function startCooking(id) {
+            await db.collection('orders').doc(id).update({ status: 'cooking' });
+            speak(`${state.orders.find(o=>o._id===id).table}开始制作`);
+            refreshData();
+        }
+
+        async function toggleDone(oid, idx) {
+            const o = state.orders.find(ord => ord._id === oid);
+            o.items[idx].done = !o.items[idx].done;
+            await db.collection('orders').doc(oid).update({ items: o.items });
             render();
-        });
+        }
 
-        render();
+        async function applyRefund(oid, idx) {
+            const o = state.orders.find(ord => ord._id === oid);
+            o.items[idx].refunding = true;
+            await db.collection('orders').doc(oid).update({ items: o.items });
+            speak(`退菜申请，${o.table}请求退回${o.items[idx].name}`);
+            refreshData();
+            alert("退菜申请已发送，请等待后厨确认");
+        }
+
+        async function doRefund(oid, idx, agree) {
+            const o = state.orders.find(ord => ord._id === oid);
+            if(agree) {
+                o.items.splice(idx, 1);
+                if(o.items.length === 0) {
+                    await db.collection('orders').doc(oid).remove();
+                } else {
+                    const packing = o.table.includes('打包') ? o.items.filter(i => !i.isRice).length : 0;
+                    const total = o.items.reduce((s,i)=>s+i.price, 0) + packing;
+                    await db.collection('orders').doc(oid).update({ items: o.items, total: total });
+                }
+                speak("退菜已同意");
+            } else {
+                o.items[idx].refunding = false;
+                await db.collection('orders').doc(oid).update({ items: o.items });
+                speak("退菜已拒绝");
+            }
+            refreshData();
+        }
+
+        async function adminDelete(oid, idx) {
+            if(confirm("确定删除该菜品？")) doRefund(oid, idx, true);
+        }
+
+        async function finishOrder(oid) {
+            const o = state.orders.find(ord => ord._id === oid);
+            await db.collection('history').add({
+                table: o.table,
+                total: o.total,
+                time: Date.now()
+            });
+            await db.collection('orders').doc(oid).remove();
+            speak(`结账成功，收米啦！`);
+            refreshData();
+        }
+
+        // 定时拉取云端最新状态 (每5秒)
+        setInterval(refreshData, 5000);
+        switchView('user');
     </script>
 </body>
 </html>
+
+
