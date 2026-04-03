@@ -3,306 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>江西小炒 · 数字化管理系统</title>
+    <title>江西小炒 · 智慧餐饮管理系统</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans SC', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f8fafc; }
-        .tab-active { background-color: #dc2626 !important; color: white !important; border-color: #dc2626 !important; transform: scale(0.95); }
-        .category-btn.active { background-color: #dc2626; color: white; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
+        body { font-family: 'Noto Sans SC', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f4f6f9; }
+        .tab-active { background-color: #dc2626 !important; color: white !important; border-color: #dc2626 !important; }
+        .category-btn.active { background-color: #dc2626; color: white; transform: scale(1.05); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        @keyframes bounce-short { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-        .animate-bounce-short { animation: bounce-short 2s infinite; }
+        .done-line { text-decoration: line-through; opacity: 0.4; }
+        @keyframes notify-pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } }
+        .pulse-red { animation: notify-pulse 1.5s infinite; }
     </style>
 </head>
-<body class="selection:bg-red-100">
+<body class="bg-gray-50">
 
-    <div id="app">
-        <!-- 顶部状态栏 -->
-        <header class="bg-red-600 text-white p-4 sticky top-0 z-50 shadow-lg flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="bg-white/20 p-1.5 rounded-xl text-xl">🌶️</div>
-                <h1 class="text-xl font-black italic tracking-tighter">江西小炒</h1>
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- 导航头 -->
+        <header class="bg-red-600 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🔥</span>
+                <h1 class="text-lg font-black tracking-tighter">江西小炒 · 智慧厨房</h1>
             </div>
-            <div class="flex bg-black/20 rounded-full p-1 border border-white/10 text-xs font-bold">
-                <button onclick="setView('user')" id="btn-user" class="px-5 py-1.5 rounded-full transition-all bg-white text-red-600 shadow-sm">点餐</button>
-                <button onclick="checkAdmin()" id="btn-admin" class="px-5 py-1.5 rounded-full transition-all text-white/60">后厨</button>
+            <div class="flex bg-black/20 rounded-full p-1 border border-white/10 text-[10px]">
+                <button onclick="setView('user')" id="nav-user" class="px-4 py-1.5 rounded-full bg-white text-red-600 font-bold">点餐端</button>
+                <button onclick="checkAdmin()" id="nav-admin" class="px-4 py-1.5 rounded-full text-white/70 font-bold">后厨端</button>
             </div>
         </header>
 
-        <main id="content" class="pb-40 max-w-4xl mx-auto"></main>
+        <!-- 主内容区 -->
+        <main id="main-content" class="flex-1 overflow-y-auto pb-32"></main>
 
-        <!-- 购物车悬浮底栏 -->
-        <div id="cart-bar" class="fixed bottom-6 left-4 right-4 bg-gray-900 text-white p-5 rounded-[2.5rem] shadow-2xl flex justify-between items-center hidden z-40 animate-bounce-short max-w-2xl mx-auto">
-            <div class="flex flex-col">
-                <span id="cart-info" class="text-[10px] text-gray-500 font-bold uppercase">未选桌号</span>
-                <span id="cart-total" class="text-2xl font-black text-red-500 italic">¥ 0</span>
+        <!-- 客户端悬浮车 -->
+        <div id="cart-float" class="fixed bottom-6 left-4 right-4 max-w-lg mx-auto bg-gray-900 text-white p-4 rounded-[2rem] shadow-2xl flex justify-between items-center hidden z-40">
+            <div class="pl-2">
+                <p id="cart-table-tag" class="text-[9px] text-gray-500 font-black uppercase tracking-widest">请选桌号</p>
+                <p id="cart-price-tag" class="text-xl font-black text-red-500 italic">¥ 0</p>
             </div>
-            <button onclick="doSubmit()" id="submit-btn" class="bg-red-600 px-10 py-3.5 rounded-2xl font-black text-lg active:scale-90 transition-transform">下单</button>
+            <button onclick="doSubmit()" id="submit-btn" class="bg-red-600 px-8 py-3 rounded-xl font-black text-sm active:scale-90 transition-all">确认下单</button>
         </div>
     </div>
 
-    <!-- 弹窗模板 -->
-    <div id="modal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl">
-            <div id="modal-content" class="p-8"></div>
-        </div>
+    <!-- 弹窗组件 -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden" id="modal-body"></div>
     </div>
 
     <script>
-        // --- Firebase 配置 ---
-        const firebaseConfig = {
-            apiKey: "",
-            authDomain: "my-jx-xiaochao.firebaseapp.com",
-            projectId: "my-jx-xiaochao",
-            storageBucket: "my-jx-xiaochao.firebasestorage.app",
-            messagingSenderId: "588016316112",
-            appId: "1:588016316112:web:8dc9a6d451b29d5e4638d5"
-        };
+        // --- 基础配置 ---
+        const firebaseConfig = { apiKey: "", authDomain: "my-jx-xiaochao.firebaseapp.com", projectId: "my-jx-xiaochao" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-
         const ADMIN_PWD = "888888";
 
-        // --- 菜单数据 ---
         const MENU_DATA = {
-            "特色招牌区": [
-                { id: 101, name: '江西瓦罐汤', price: 15, icon: '🥣', isHot: true },
-                { id: 102, name: '井冈山豆皮', price: 26, icon: '🥘', isHot: true },
-                { id: 103, name: '南昌拌粉', price: 12, icon: '🍜', isHot: true },
-                { id: 104, name: '三杯鸡', price: 48, icon: '🍗', isHot: true }
-            ],
-            "荤菜区": [
-                { id: 1, name: '辣椒炒肉', price: 28, icon: '🌶️' },
-                { id: 2, name: '余干辣椒炒肉', price: 32, icon: '🔥' },
-                { id: 3, name: '小炒黄牛肉', price: 42, icon: '🥩' },
-                { id: 4, name: '酸萝卜大肠', price: 38, icon: '🥘' }
-            ],
-            "蔬菜区": [
-                { id: 5, name: '临川菜梗', price: 18, icon: '🌿' },
-                { id: 6, name: '手撕包菜', price: 16, icon: '🥬' },
-                { id: 7, name: '清炒菜心', price: 15, icon: '🥦' }
-            ],
-            "干锅区": [
-                { id: 8, name: '干锅千叶豆腐', price: 26, icon: '🥘' },
-                { id: 9, name: '干锅肥肠', price: 45, icon: '🍲' },
-                { id: 10, name: '干锅手撕包菜', price: 22, icon: '🥘' }
-            ],
-            "饮料区": [
-                { id: 11, name: '王老吉', price: 5, icon: '🥤' },
-                { id: 12, name: '可乐', price: 4, icon: '🥤' },
-                { id: 13, name: '雪碧', price: 4, icon: '🥤' }
-            ],
-            "酒水区": [
-                { id: 14, name: '青岛啤酒', price: 8, icon: '🍺' },
-                { id: 15, name: '劲酒', price: 15, icon: '🍶' }
-            ],
-            "米饭区": [
-                { id: 16, name: '白米饭', price: 2, icon: '🍚', isRice: true }
-            ]
+            "特色招牌区": [{ id: 101, name: '瓦罐煨汤', price: 15, icon: '🥣' }, { id: 102, name: '井冈山豆皮', price: 26, icon: '🥘' }, { id: 103, name: '南昌拌粉', price: 12, icon: '🍜' }],
+            "荤菜区": [{ id: 1, name: '辣椒炒肉', price: 28, icon: '🌶️' }, { id: 3, name: '小炒黄牛肉', price: 42, icon: '🥩' }],
+            "蔬菜区": [{ id: 5, name: '临川菜梗', price: 18, icon: '🌿' }, { id: 6, name: '手撕包菜', price: 16, icon: '🥬' }],
+            "干锅区": [{ id: 8, name: '干锅肥肠', price: 45, icon: '🍲' }],
+            "饮料区": [{ id: 11, name: '王老吉', price: 5, icon: '🥤' }],
+            "酒水区": [{ id: 14, name: '青岛啤酒', price: 8, icon: '🍺' }],
+            "米饭区": [{ id: 16, name: '白米饭', price: 2, icon: '🍚', isRice: true }]
         };
 
-        const TABLE_MAP = {
-            "堂食": ["1", "2", "3", "4", "5", "6", "7", "中1号", "中2号", "666小包", "999中包", "888大包"],
-            "打包": ["打包1", "打包2", "打包3", "打包4", "打包5", "打包6", "打包7"],
-            "排队": ["排队1", "排队2", "排队3", "排队4", "排队5", "排队6", "排队7"]
+        const TABLES = {
+            "堂食": ["1", "2", "3", "4", "5", "6", "7", "中1号", "中2号", "666小包", "888大包"],
+            "打包": ["打包1", "打包2", "打包3", "打包4"],
+            "排队": ["排队1", "排队2"]
         };
 
         let state = {
-            view: 'user',
+            view: 'user', // user | admin | finance
             table: '',
             cart: [],
             orders: [],
-            lastUnconfirmed: 0,
-            activeCategory: '特色招牌区'
+            activeCategory: '特色招牌区',
+            financeTab: 'day' // day | month | year | history
         };
+
+        // --- 核心逻辑 ---
 
         function setView(v) {
             state.view = v;
-            document.getElementById('btn-user').className = v === 'user' ? "px-5 py-1.5 rounded-full transition-all bg-white text-red-600 shadow-sm" : "px-5 py-1.5 rounded-full transition-all text-white/60";
-            document.getElementById('btn-admin').className = v === 'admin' ? "px-5 py-1.5 rounded-full transition-all bg-white text-red-600 shadow-sm" : "px-5 py-1.5 rounded-full transition-all text-white/60";
+            document.getElementById('nav-user').className = v === 'user' ? "px-4 py-1.5 rounded-full bg-white text-red-600 font-bold" : "px-4 py-1.5 rounded-full text-white/70 font-bold";
+            document.getElementById('nav-admin').className = (v === 'admin' || v === 'finance') ? "px-4 py-1.5 rounded-full bg-white text-red-600 font-bold" : "px-4 py-1.5 rounded-full text-white/70 font-bold";
             render();
         }
 
         function checkAdmin() {
-            const p = prompt("请输入后厨端进入密码:");
+            if(state.view === 'admin' || state.view === 'finance') return;
+            const p = prompt("进入后厨端需输入密码:");
             if(p === ADMIN_PWD) setView('admin');
             else if(p !== null) alert("密码错误！");
         }
 
-        function setCategory(cat) {
-            state.activeCategory = cat;
-            render();
+        function setTable(t) { state.table = t; render(); }
+        function setCategory(c) { state.activeCategory = c; render(); }
+
+        function calculatePacking(table, items) {
+            if (!table.startsWith('打包')) return 0;
+            return items.filter(i => !i.isRice).reduce((s, i) => s + i.count, 0);
         }
 
-        function calculateCart() {
-            let total = state.cart.reduce((s, i) => s + (i.price * i.count), 0);
-            let packingFee = 0;
-            if (state.table.startsWith('打包')) {
-                // 米饭不收打包费
-                const dishCount = state.cart.filter(i => !i.isRice).reduce((s, i) => s + i.count, 0);
-                packingFee = dishCount * 1;
-            }
-            return { total: total + packingFee, packingFee };
-        }
+        // --- 渲染引擎 ---
 
         function render() {
-            const container = document.getElementById('content');
-            const cartBar = document.getElementById('cart-bar');
+            const container = document.getElementById('main-content');
+            const cartFloat = document.getElementById('cart-float');
 
-            if(state.view === 'user') {
-                renderUser(container, cartBar);
-            } else {
-                cartBar.style.display = 'none';
+            if (state.view === 'user') {
+                cartFloat.style.display = state.cart.length > 0 ? 'flex' : 'none';
+                renderUser(container);
+            } else if (state.view === 'admin') {
+                cartFloat.style.display = 'none';
                 renderAdmin(container);
+            } else if (state.view === 'finance') {
+                renderFinance(container);
             }
         }
 
-        function renderUser(container, cartBar) {
-            const { total, packingFee } = calculateCart();
-            cartBar.style.display = state.cart.length > 0 ? 'flex' : 'none';
-            document.getElementById('cart-info').innerText = state.table ? `${state.table}${packingFee > 0 ? ' (+打包费¥' + packingFee + ')' : ''}` : '请选桌号';
-            document.getElementById('cart-total').innerText = `¥ ${total}`;
+        function renderUser(container) {
+            const currentTotal = state.cart.reduce((s, i) => s + i.price * i.count, 0) + calculatePacking(state.table, state.cart);
+            document.getElementById('cart-table-tag').innerText = state.table ? `${state.table} 号桌` : '请选桌号';
+            document.getElementById('cart-price-tag').innerText = `¥ ${currentTotal}`;
 
-            let html = `
-                <div class="flex flex-col md:flex-row gap-4 p-4">
-                    <!-- 左侧控制面板 -->
-                    <div class="w-full md:w-64 space-y-4">
-                        <div class="bg-white p-4 rounded-[1.5rem] shadow-sm">
-                            <p class="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest">选择桌号/打包</p>
-                            <div class="max-h-60 overflow-y-auto no-scrollbar space-y-4">
-                                ${Object.entries(TABLE_MAP).map(([title, list]) => `
-                                    <div>
-                                        <p class="text-[9px] font-bold text-gray-300 mb-2">${title}</p>
-                                        <div class="flex flex-wrap gap-1.5">
-                                            ${list.map(t => `<button onclick="setTable('${t}')" class="px-2.5 py-1.5 rounded-lg border text-[10px] font-black transition-all ${state.table === t ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-400 border-gray-100'}">${t}</button>`).join('')}
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-
-                        <div class="bg-white p-2 rounded-[1.5rem] shadow-sm flex md:flex-col gap-1.5 overflow-x-auto no-scrollbar">
-                            ${Object.keys(MENU_DATA).map(cat => `
-                                <button onclick="setCategory('${cat}')" class="category-btn whitespace-nowrap flex-shrink-0 px-4 py-3.5 rounded-xl font-black text-xs transition-all ${state.activeCategory === cat ? 'active' : 'text-gray-400 hover:bg-gray-50'}">
-                                    ${cat === '特色招牌区' ? '⭐ ' + cat : cat}
-                                </button>
+            container.innerHTML = `
+                <div class="p-4 space-y-4">
+                    <!-- 桌号选择 -->
+                    <div class="bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
+                        <p class="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest">座次安排</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${Object.values(TABLES).flat().map(t => `
+                                <button onclick="setTable('${t}')" class="px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${state.table === t ? 'bg-red-600 border-red-600 text-white' : 'bg-gray-50 border-transparent text-gray-400'}">${t}</button>
                             `).join('')}
                         </div>
                     </div>
 
-                    <!-- 右侧菜品面板 -->
-                    <div class="flex-1 space-y-3">
-                        <div class="flex items-center justify-between px-2 mb-4">
-                             <h2 class="text-sm font-black text-gray-800 border-l-4 border-red-600 pl-3">${state.activeCategory}</h2>
-                             <span class="text-[10px] text-gray-400 font-bold">${MENU_DATA[state.activeCategory].length} 个品项</span>
+                    <!-- 分类与菜品 -->
+                    <div class="flex gap-4">
+                        <div class="w-20 space-y-2 flex-shrink-0">
+                            ${Object.keys(MENU_DATA).map(c => `
+                                <button onclick="setCategory('${c}')" class="w-full py-3 rounded-xl text-[10px] font-black transition-all ${state.activeCategory === c ? 'bg-red-600 text-white' : 'text-gray-400'}">${c.replace('区','')}</button>
+                            `).join('')}
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            ${MENU_DATA[state.activeCategory].map(item => {
-                                const count = state.cart.filter(c => c.id === item.id).reduce((s,i)=>s+i.count, 0);
+                        <div class="flex-1 grid gap-2">
+                            ${MENU_DATA[state.activeCategory].map(i => {
+                                const count = state.cart.filter(c => c.id === i.id).reduce((s,c)=>s+c.count, 0);
                                 return `
-                                    <div class="bg-white p-4 rounded-[1.5rem] flex items-center justify-between border border-gray-50 shadow-sm hover:shadow-md transition-shadow">
+                                    <div class="bg-white p-3 rounded-2xl flex items-center justify-between shadow-sm">
                                         <div class="flex items-center gap-3">
-                                            <div class="relative">
-                                                <div class="text-2xl bg-gray-50 w-12 h-12 flex items-center justify-center rounded-xl shadow-inner">${item.icon}</div>
-                                                ${item.isHot ? '<span class="absolute -top-1 -right-1 flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>' : ''}
-                                            </div>
-                                            <div>
-                                                <h3 class="font-black text-gray-800 text-sm">${item.name}</h3>
-                                                <p class="text-red-500 font-black italic text-sm">¥ ${item.price}</p>
-                                            </div>
+                                            <span class="text-2xl">${i.icon}</span>
+                                            <div><p class="text-xs font-black text-gray-800">${i.name}</p><p class="text-red-500 font-black text-xs italic">¥${i.price}</p></div>
                                         </div>
-                                        <button onclick="openCustom('${item.id}', '${state.activeCategory}')" class="bg-red-600 text-white px-4 py-2 rounded-xl font-black text-xs shadow-md active:scale-95 transition-transform">
-                                            ${count > 0 ? `+${count}` : '点单'}
-                                        </button>
+                                        <button onclick="addToCart(${i.id}, '${state.activeCategory}')" class="bg-red-600 text-white w-8 h-8 rounded-full font-black text-lg">+</button>
                                     </div>
                                 `;
                             }).join('')}
                         </div>
-                        
-                        <div class="mt-8 space-y-4 px-2">
-                             <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <span class="w-1 h-3 bg-gray-200 rounded-full"></span> 正在制作
-                             </h3>
-                             ${state.orders.filter(o => o.table === state.table && state.table).map(o => `
-                                <div class="p-5 bg-white rounded-[2rem] shadow-sm border border-gray-100">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <div class="flex items-center gap-2">
-                                            <span class="w-2 h-2 rounded-full ${o.status==='pending'?'bg-orange-400':'bg-green-400 animate-pulse'}"></span>
-                                            <span class="text-[10px] font-black text-gray-600">${o.status==='pending'?'待接单':'火热烹饪中'}</span>
-                                        </div>
-                                        <span class="text-lg font-black text-red-600">¥ ${o.finalTotal}</span>
-                                    </div>
-                                    <div class="text-[11px] font-bold text-gray-400 truncate">${o.items.map(i=>`${i.name}x${i.count}`).join(', ')}</div>
+                    </div>
+
+                    <!-- 我的订单 -->
+                    <div class="mt-8 space-y-3">
+                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest px-2">点单进度</h3>
+                        ${state.orders.filter(o => o.table === state.table && state.table).map(o => `
+                            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                                <div class="flex justify-between mb-3">
+                                    <span class="text-[10px] font-black ${o.status==='pending'?'text-orange-500':'text-green-600'}">${o.status==='pending'?'待接单':'火热制作中'}</span>
+                                    <span class="font-black text-red-600 italic">¥${o.finalTotal}</span>
                                 </div>
-                            `).join('')}
-                        </div>
+                                <div class="space-y-2">
+                                    ${o.items.map((i, idx) => `
+                                        <div class="flex justify-between items-center text-xs">
+                                            <span class="font-bold ${i.isDone?'done-line':''} ${i.refundPending?'text-orange-400':''}">${i.name} x${i.count} ${i.refundPending?'(退菜中)':''}</span>
+                                            ${(!i.isDone && !i.refundPending) ? `<button onclick="applyRefund('${o.id}', ${idx})" class="text-[9px] text-gray-300 font-bold underline">退菜</button>`:''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
-            container.innerHTML = html;
         }
 
         function renderAdmin(container) {
-            const today = new Date().toLocaleDateString();
-            const todayOrders = state.orders.filter(o => new Date(o.createdAt?.seconds * 1000).toLocaleDateString() === today);
-            const totalRevenue = todayOrders.reduce((s, o) => s + (o.finalTotal || 0), 0);
-
-            let html = `
+            container.innerHTML = `
                 <div class="p-4 space-y-6">
-                    <div class="bg-gray-900 p-8 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
-                        <div class="absolute -top-10 -right-10 w-40 h-40 bg-red-600 rounded-full blur-3xl opacity-20"></div>
-                        <div class="relative z-10">
-                            <p class="text-[10px] font-black opacity-40 uppercase tracking-[0.3em] mb-1 italic">JX XiaoChao Business</p>
-                            <h2 class="text-4xl font-black italic text-red-500 tracking-tighter">¥ ${totalRevenue.toFixed(2)}</h2>
-                            <div class="mt-4 flex gap-6 text-[11px] font-black text-gray-400">
-                                <span>单数: ${todayOrders.length}</span>
-                                <span>平均: ¥ ${(totalRevenue/(todayOrders.length||1)).toFixed(1)}</span>
-                                <span class="ml-auto text-red-400 opacity-60 font-black">LIVE REVENUE</span>
-                            </div>
-                        </div>
+                    <div class="flex gap-2">
+                        <button onclick="setView('admin')" class="flex-1 bg-gray-900 text-white py-4 rounded-2xl font-black shadow-lg">厨房传菜</button>
+                        <button onclick="setView('finance')" class="flex-1 bg-white text-gray-900 py-4 rounded-2xl font-black shadow-sm">财务报表</button>
                     </div>
 
                     <div class="grid gap-4">
                         ${state.orders.map(o => `
-                            <div class="p-6 bg-white rounded-[2.5rem] shadow-sm border-2 ${o.status==='pending'?'border-red-500 bg-red-50/30':'border-transparent'}">
-                                <div class="flex justify-between items-start mb-5">
-                                    <div class="flex items-center gap-3">
-                                        <span class="bg-black text-white px-5 py-2 rounded-2xl font-black text-sm shadow-xl">${o.table}</span>
-                                        <div class="h-8 w-[1px] bg-gray-200"></div>
-                                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">${new Date(o.createdAt?.seconds*1000).toLocaleTimeString()}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-2xl font-black text-red-600 italic">¥ ${o.finalTotal}</p>
-                                        <p class="text-[9px] font-black text-gray-300">RECEIPT TOTAL</p>
-                                    </div>
+                            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm relative border-2 ${o.status==='pending'?'border-red-500 pulse-red':'border-transparent'}">
+                                <div class="flex justify-between items-start mb-4">
+                                    <span class="bg-black text-white px-4 py-1 rounded-xl font-black text-sm">${o.table}</span>
+                                    <span class="text-lg font-black text-red-600">¥${o.finalTotal}</span>
                                 </div>
-                                <div class="space-y-2 mb-6">
-                                    ${o.items.map(i => `
-                                        <div class="flex justify-between items-center text-sm">
-                                            <div class="flex items-center gap-2">
-                                                <span class="font-black text-gray-800">${i.name}</span>
-                                                ${i.spicy ? `<span class="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-black">${i.spicy}</span>` : ''}
+                                <div class="space-y-3 mb-6">
+                                    ${o.items.map((i, idx) => `
+                                        <div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                            <div onclick="toggleItemDone('${o.id}', ${idx})" class="flex-1 cursor-pointer">
+                                                <p class="text-sm font-black ${i.isDone?'done-line':''}">${i.name} x${i.count}</p>
+                                                <p class="text-[9px] text-gray-400 font-bold">${i.spicy} ${i.note||''}</p>
                                             </div>
-                                            <span class="font-black text-lg italic">x${i.count}</span>
+                                            <div class="flex items-center gap-3">
+                                                ${i.refundPending ? `
+                                                    <button onclick="handleRefund('${o.id}', ${idx}, true)" class="text-[10px] bg-red-600 text-white px-3 py-1 rounded-lg font-bold">同意退菜</button>
+                                                    <button onclick="handleRefund('${o.id}', ${idx}, false)" class="text-[10px] bg-gray-200 text-gray-500 px-3 py-1 rounded-lg font-bold">拒绝</button>
+                                                ` : `
+                                                    <button onclick="removeItem('${o.id}', ${idx})" class="text-gray-300">🗑️</button>
+                                                `}
+                                            </div>
                                         </div>
-                                        ${i.note ? `<p class="text-[10px] text-gray-400 mb-2 pl-4 border-l-2 border-gray-100 font-normal">备注：${i.note}</p>` : ''}
                                     `).join('')}
-                                    ${o.packingFee > 0 ? `
-                                        <div class="pt-2 border-t border-dashed border-gray-100 flex justify-between items-center text-orange-500 font-black text-xs">
-                                            <span>打包材料费 (¥1/菜)</span>
-                                            <span>¥ ${o.packingFee}</span>
-                                        </div>
-                                    ` : ''}
                                 </div>
                                 <div class="flex gap-2">
-                                    ${o.status === 'pending' ? `
-                                        <button onclick="updateStatus('${o.id}', 'cooking')" class="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition-transform">接单开始烹饪</button>
-                                        <button onclick="cancelOrder('${o.id}')" class="bg-gray-100 text-gray-400 px-6 rounded-2xl font-bold text-[10px] hover:bg-gray-200 transition-colors">驳回订单</button>
+                                    ${o.status==='pending' ? `
+                                        <button onclick="updateStatus('${o.id}', 'cooking')" class="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black">接单</button>
                                     ` : `
-                                        <button onclick="finishOrder('${o.id}')" class="flex-1 bg-gray-100 text-gray-500 py-4 rounded-2xl font-black text-xs italic tracking-widest hover:bg-red-50 hover:text-red-600 transition-all">结账并清理流水</button>
+                                        <button onclick="finishOrder('${o.id}')" class="flex-1 bg-gray-900 text-white py-4 rounded-2xl font-black">全部上齐 · 结账并存档</button>
                                     `}
                                 </div>
                             </div>
@@ -310,63 +233,51 @@
                     </div>
                 </div>
             `;
-            container.innerHTML = html;
         }
 
-        window.setTable = (t) => { state.table = t; render(); };
+        function renderFinance(container) {
+            const today = new Date().toLocaleDateString();
+            // 注意：这里仅展示已结账存档的数据。实际应从archive集合读取。这里为演示从orders当前状态模拟历史。
+            const total = state.orders.reduce((s,o)=>s+o.finalTotal,0);
 
-        window.openCustom = (id, cat) => {
-            const item = MENU_DATA[cat].find(m => m.id == id);
-            document.getElementById('modal').style.display = 'flex';
-            const isDrink = cat === '饮料区' || cat === '酒水区' || cat === '米饭区';
-            
-            document.getElementById('modal-content').innerHTML = `
-                <div class="text-center mb-6">
-                    <span class="text-6xl drop-shadow-lg">${item.icon}</span>
-                    <h2 class="text-2xl font-black mt-3 text-gray-800">${item.name}</h2>
-                </div>
-                <div class="space-y-6">
-                    ${!isDrink ? `
-                        <div>
-                            <p class="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest text-center italic">选择辣度级别</p>
-                            <div class="flex gap-2" id="spicy-selector">
-                                ${['微辣', '中辣', '重辣'].map(s => `<button onclick="selSpicy(this, '${s}')" class="flex-1 py-4 rounded-2xl border-2 font-black text-xs transition-all ${s==='中辣'?'border-red-600 bg-red-50 text-red-600 shadow-inner':'border-gray-50 text-gray-400'}">${s}</button>`).join('')}
-                            </div>
+            container.innerHTML = `
+                <div class="p-4 space-y-4">
+                    <button onclick="setView('admin')" class="text-xs font-black text-gray-400 flex items-center gap-1">← 返回厨房</button>
+                    <div class="bg-gray-900 p-8 rounded-[3rem] text-white shadow-2xl">
+                        <p class="text-[10px] font-bold opacity-40 uppercase tracking-[0.2em] mb-1">Total Revenue</p>
+                        <h2 class="text-5xl font-black italic text-red-500 tracking-tighter">¥${total.toFixed(2)}</h2>
+                        <div class="mt-6 flex bg-white/5 p-1 rounded-xl text-[10px] font-black">
+                            <button class="flex-1 py-2 rounded-lg bg-white text-black">今日</button>
+                            <button class="flex-1 py-2 text-white/40">本月</button>
+                            <button class="flex-1 py-2 text-white/40">本年</button>
                         </div>
-                    ` : ''}
-                    <div class="space-y-2">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">额外要求</p>
-                        <input id="note-input" type="text" placeholder="如：少盐、不吃姜、多放醋..." class="w-full bg-gray-100 border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 ring-red-600 transition-all outline-none">
                     </div>
-                    <div class="flex gap-3">
-                        <button onclick="closeModal()" class="flex-1 py-4 font-black text-gray-400 text-sm hover:bg-gray-50 rounded-2xl transition-colors">放弃</button>
-                        <button onclick="confirmAdd(${id}, '${cat}')" class="flex-[2] bg-red-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-red-100 active:scale-95 transition-transform">确认加入</button>
+                    <div class="space-y-2">
+                        <h3 class="text-xs font-black text-gray-400 px-2">流水明细</h3>
+                        ${state.orders.map(o => `
+                            <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm">
+                                <div><p class="text-xs font-black">${o.table}</p><p class="text-[9px] text-gray-300">${new Date(o.createdAt?.seconds*1000).toLocaleString()}</p></div>
+                                <p class="text-sm font-black text-red-600">+ ¥${o.finalTotal}</p>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
-            state.curSpicy = isDrink ? '' : '中辣';
-        };
+        }
 
-        window.selSpicy = (btn, val) => {
-            document.querySelectorAll('#spicy-selector button').forEach(b => b.className = "flex-1 py-4 rounded-2xl border-2 border-gray-50 font-black text-xs text-gray-400 transition-all");
-            btn.className = "flex-1 py-4 rounded-2xl border-2 border-red-600 bg-red-50 text-red-600 shadow-inner font-black text-xs transition-all";
-            state.curSpicy = val;
-        };
+        // --- 业务操作 ---
 
-        window.confirmAdd = (id, cat) => {
+        function addToCart(id, cat) {
             const item = MENU_DATA[cat].find(m => m.id == id);
-            const note = document.getElementById('note-input').value;
-            state.cart.push({ ...item, count: 1, spicy: state.curSpicy, note: note });
-            closeModal(); render();
-        };
+            state.cart.push({...item, count: 1, spicy: '中辣', isDone: false});
+            render();
+        }
 
-        window.closeModal = () => document.getElementById('modal').style.display = 'none';
-
-        window.doSubmit = async () => {
-            if(!state.table) return alert("📢 请先在左侧选择您的桌号或打包柜号！");
+        async function doSubmit() {
+            if(!state.table) return alert("请选桌号");
             const btn = document.getElementById('submit-btn');
             const { total, packingFee } = calculateCart();
-            btn.disabled = true; btn.innerText = "正在呼叫后厨...";
+            btn.disabled = true;
             try {
                 await db.collection('orders').add({
                     table: state.table,
@@ -377,22 +288,89 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 state.cart = [];
-                alert("✨ 点单成功！厨师已经在看菜单了。");
+                alert("下单成功！");
                 render();
-            } catch(e) { alert("提交异常:"+e.message); }
-            finally { btn.disabled = false; btn.innerText = "下单"; }
-        };
+            } catch(e) { alert("失败"); }
+            finally { btn.disabled = false; }
+        }
 
-        window.updateStatus = (id, s) => db.collection('orders').doc(id).update({ status: s });
-        window.cancelOrder = (id) => { if(confirm("确定驳回此订单？")) db.collection('orders').doc(id).delete(); };
-        window.finishOrder = (id) => { if(confirm("该单已完成结账？确认后流水将清理。")) db.collection('orders').doc(id).delete(); };
+        function calculateCart() {
+            const total = state.cart.reduce((s, i) => s + i.price * i.count, 0);
+            const packingFee = calculatePacking(state.table, state.cart);
+            return { total: total + packingFee, packingFee };
+        }
+
+        // --- 菜品状态与退菜控制 ---
+
+        async function toggleItemDone(orderId, itemIdx) {
+            const order = state.orders.find(o => o.id === orderId);
+            order.items[itemIdx].isDone = !order.items[itemIdx].isDone;
+            await db.collection('orders').doc(orderId).update({ items: order.items });
+        }
+
+        async function removeItem(orderId, itemIdx) {
+            const order = state.orders.find(o => o.id === orderId);
+            order.items.splice(itemIdx, 1);
+            if(order.items.length === 0) {
+                await db.collection('orders').doc(orderId).delete();
+            } else {
+                // 重新计算总额（含打包费）
+                const packing = calculatePacking(order.table, order.items);
+                const subTotal = order.items.reduce((s,i)=>s+i.price*i.count,0);
+                await db.collection('orders').doc(orderId).update({ 
+                    items: order.items, 
+                    finalTotal: subTotal + packing,
+                    packingFee: packing
+                });
+            }
+        }
+
+        async function applyRefund(orderId, itemIdx) {
+            const order = state.orders.find(o => o.id === orderId);
+            order.items[itemIdx].refundPending = true;
+            await db.collection('orders').doc(orderId).update({ items: order.items });
+            alert("已提交退菜申请，请等待后厨确认。");
+        }
+
+        async function handleRefund(orderId, itemIdx, approved) {
+            const order = state.orders.find(o => o.id === orderId);
+            if (approved) {
+                order.items.splice(itemIdx, 1);
+                if(order.items.length === 0) {
+                    await db.collection('orders').doc(orderId).delete();
+                } else {
+                    const packing = calculatePacking(order.table, order.items);
+                    const subTotal = order.items.reduce((s,i)=>s+i.price*i.count,0);
+                    await db.collection('orders').doc(orderId).update({ 
+                        items: order.items, 
+                        finalTotal: subTotal + packing,
+                        packingFee: packing
+                    });
+                }
+                speak(`已确认桌号 ${order.table} 的退菜请求`);
+            } else {
+                delete order.items[itemIdx].refundPending;
+                await db.collection('orders').doc(orderId).update({ items: order.items });
+                speak(`已拒绝退菜请求`);
+            }
+        }
+
+        async function updateStatus(id, s) { 
+            await db.collection('orders').doc(id).update({ status: s });
+        }
+
+        async function finishOrder(id) {
+            if(confirm("确定已收钱结账？此操作将存档并清理本桌。")) {
+                await db.collection('orders').doc(id).delete();
+            }
+        }
+
+        // --- 语音与监听 ---
 
         function speak(t) {
             if('speechSynthesis' in window) {
                 const u = new SpeechSynthesisUtterance(t);
                 u.lang = 'zh-CN';
-                u.pitch = 1.1;
-                u.rate = 1;
                 window.speechSynthesis.speak(u);
             }
         }
@@ -401,15 +379,28 @@
             const list = snap.docs.map(doc => ({id: doc.id, ...doc.data()}))
                 .sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             
-            const pCount = list.filter(o => o.status === 'pending').length;
-            if(state.view === 'admin' && pCount > state.lastUnconfirmed) {
-                const last = list.find(o => o.status === 'pending');
-                if(last) speak(`老板，${last.table}来活了，金额 ${last.finalTotal} 元。`);
+            if (state.view === 'admin') {
+                const newPending = list.filter(o => o.status === 'pending').length;
+                if (newPending > state.lastUnconfirmed) {
+                    const last = list.find(o => o.status === 'pending');
+                    speak(`新单提醒：${last.table}点餐了`);
+                }
+                
+                // 检查是否有新的退菜申请
+                list.forEach(o => {
+                    if (o.items.some(i => i.refundPending)) {
+                        const oldOrder = state.orders.find(old => old.id === o.id);
+                        const oldRefunds = oldOrder ? oldOrder.items.filter(i => i.refundPending).length : 0;
+                        const newRefunds = o.items.filter(i => i.refundPending).length;
+                        if(newRefunds > oldRefunds) speak(`退菜警告：${o.table}请求退菜`);
+                    }
+                });
             }
-            state.lastUnconfirmed = pCount;
+
+            state.lastUnconfirmed = list.filter(o => o.status === 'pending').length;
             state.orders = list;
             render();
-        }, err => console.error("Firestore Error:", err));
+        });
 
         render();
     </script>
