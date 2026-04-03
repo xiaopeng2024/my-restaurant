@@ -3,219 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>江西小炒管理系统 v2.0</title>
-    <!-- 引入 SDK -->
+    <title>江西小炒 · 诊断模式</title>
     <script src="https://web-99.cdn.cloudbase.net/sdk/2.8.0/cloudbase.full.js"></script>
     <style>
-        /* 所有的外观样式直接写死在这里 */
-        body { margin: 0; padding: 0; background-color: #f7f7f7; font-family: "PingFang SC", "Helvetica Neue", sans-serif; color: #333; }
-        .top-bar { background-color: #e63946; color: white; padding: 20px 15px; text-align: center; font-size: 20px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .nav-tabs { display: flex; background: white; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 99; }
-        .nav-item { flex: 1; text-align: center; padding: 15px; font-size: 14px; color: #888; border-bottom: 3px solid transparent; }
-        .nav-item.active { color: #e63946; border-bottom-color: #e63946; font-weight: bold; }
-        
-        .section { padding: 15px; }
-        .table-list { display: flex; overflow-x: auto; gap: 10px; margin-bottom: 15px; padding-bottom: 5px; }
-        .table-card { background: white; padding: 10px 20px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; white-space: nowrap; }
-        .table-card.selected { background: #e63946; color: white; border-color: #e63946; }
-        
-        .menu-list { display: grid; grid-template-columns: 1fr; gap: 12px; }
-        .dish-card { background: white; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #fff; }
-        .dish-card:active { background: #fafafa; border-color: #eee; }
-        .dish-name { font-size: 17px; font-weight: bold; margin-bottom: 4px; }
-        .dish-price { color: #e63946; font-size: 15px; font-weight: bold; }
-        .plus-icon { background: #e63946; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
-        
-        .cart-float { position: fixed; bottom: 20px; left: 15px; right: 15px; background: #222; color: white; padding: 15px 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 1000; }
-        .btn-order { background: #e63946; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 16px; font-weight: bold; }
-        
-        .order-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 6px solid #e63946; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .order-header { display: flex; justify-content: space-between; border-bottom: 1px dashed #eee; padding-bottom: 10px; margin-bottom: 10px; }
-        .status-badge { font-size: 12px; background: #fff1f0; color: #e63946; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffa39e; }
-        
-        .loading-mask { padding: 50px; text-align: center; color: #999; }
+        body { margin: 0; background: #f4f4f4; font-family: sans-serif; }
+        .header { background: #e63946; color: white; padding: 20px; text-align: center; font-size: 20px; font-weight: bold; }
+        .status-box { background: #fff; margin: 10px; padding: 15px; border-radius: 8px; border-left: 5px solid #ff9800; font-size: 14px; }
+        .menu-item { background: white; margin: 10px; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .add-btn { background: #e63946; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 20px; }
+        .error-text { color: #e63946; font-weight: bold; background: #ffebeb; padding: 10px; border-radius: 5px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
 
-<div class="top-bar">🏮 江西小炒管理 (稳定版)</div>
+<div class="header">🏮 江西小炒管理系统</div>
 
-<div class="nav-tabs">
-    <div id="tab-user" class="nav-item active" onclick="goView('user')">点餐端</div>
-    <div id="tab-admin" class="nav-item" onclick="goView('admin')">后厨端</div>
+<div id="status" class="status-box">
+    <b>系统状态：</b> <span id="status-msg">正在连接腾讯云...</span>
+    <div id="error-info" class="error-text"></div>
 </div>
 
-<div id="content" class="section">
-    <div class="loading-mask">系统初始化中，请稍候...</div>
-</div>
-
-<div id="cart-box" class="cart-float" style="display:none;">
-    <div>
-        <div id="cart-table-name" style="font-size:12px; color:#aaa;">请选桌号</div>
-        <div id="cart-money" style="font-size:20px; font-weight:bold; color:#e63946;">¥ 0</div>
-    </div>
-    <button class="btn-order" onclick="doSubmit()">确定下单</button>
+<div id="main-content">
+    <!-- 菜单将在这里显示 -->
 </div>
 
 <script>
-    // --- 数据库配置 ---
-    const envId = "my-jxxc-6g4w7jse94653bcc";
-    const app = cloudbase.init({ env: envId });
-    const db = app.database();
+    // --- 【必须检查】这里一定要改成你自己的环境ID ---
+    const envId = "my-jxxc-6g4w7jse94653bcc"; 
     
-    let state = {
-        view: 'user',
-        table: '',
-        cart: [],
-        orders: [],
-        menu: [
-            {id: 1, name: '辣椒炒肉', price: 28},
-            {id: 2, name: '小炒牛肉', price: 45},
-            {id: 3, name: '酸萝卜肥肠', price: 38},
-            {id: 4, name: '手撕包菜', price: 16},
-            {id: 5, name: '南昌拌粉', price: 12},
-            {id: 6, name: '瓦罐煨汤', price: 15},
-            {id: 7, name: '白米饭', price: 2}
-        ],
-        tables: ["1号桌", "2号桌", "3号桌", "5号桌", "打包1", "打包2"]
-    };
+    const MENU = [
+        {name: '辣椒炒肉', price: 28},
+        {name: '小炒牛肉', price: 45},
+        {name: '南昌拌粉', price: 12}
+    ];
 
-    // 初始化认证
-    async function start() {
-        try {
-            const auth = app.auth();
-            if (!auth.hasLoginState()) {
-                await auth.anonymousAuthProvider().signIn();
-            }
-            fetchOrders();
-        } catch (err) {
-            document.getElementById('content').innerHTML = `
-                <div style="color:red; padding:20px; text-align:center;">
-                    连接失败！可能是因为：<br>
-                    1. 没开通“匿名登录”<br>
-                    2. 没添加“Web安全域名”<br>
-                    <small style="color:#999">${err.message}</small>
-                </div>`;
-        }
-    }
-
-    async function fetchOrders() {
-        try {
-            const res = await db.collection('orders').orderBy('time', 'desc').limit(20).get();
-            state.orders = res.data;
-            render();
-        } catch (e) { console.error(e); }
-    }
-
-    function goView(v) {
-        state.view = v;
-        document.getElementById('tab-user').className = v === 'user' ? 'nav-item active' : 'nav-item';
-        document.getElementById('tab-admin').className = v === 'admin' ? 'nav-item active' : 'nav-item';
-        render();
-    }
-
-    function addDish(id) {
-        const dish = state.menu.find(d => d.id === id);
-        state.cart.push(dish);
-        render();
-    }
-
-    async function doSubmit() {
-        if (!state.table) return alert("请先选桌号！");
-        if (state.cart.length === 0) return alert("菜单是空的");
+    async function initSystem() {
+        const msg = document.getElementById('status-msg');
+        const errInfo = document.getElementById('error-info');
         
         try {
-            await db.collection('orders').add({
-                table: state.table,
-                items: state.cart,
-                total: state.cart.reduce((s, i) => s + i.price, 0),
-                status: '待制作',
-                time: Date.now()
-            });
-            state.cart = [];
-            alert("下单成功！");
-            fetchOrders();
-        } catch (e) { alert("下单失败，请检查数据库权限"); }
-    }
-
-    async function finishOrder(id) {
-        if (confirm("确定结账吗？")) {
-            await db.collection('orders').doc(id).remove();
-            fetchOrders();
+            const app = cloudbase.init({ env: envId });
+            const auth = app.auth();
+            
+            msg.innerText = "正在尝试匿名登录...";
+            await auth.anonymousAuthProvider().signIn();
+            
+            msg.innerText = "✅ 已连接，正在读取菜单...";
+            renderMenu();
+            
+        } catch (err) {
+            msg.innerText = "❌ 连接失败";
+            errInfo.style.display = "block";
+            errInfo.innerHTML = `
+                错误原因：${err.code || '未知'}<br>
+                详细信息：${err.message}<br><br>
+                💡 解决建议：<br>
+                1. 检查腾讯云是否开启了“匿名登录”<br>
+                2. 检查“Web安全域名”是否添加了当前网址
+            `;
         }
     }
 
-    function render() {
-        const content = document.getElementById('content');
-        const cartBox = document.getElementById('cart-box');
-
-        if (state.view === 'user') {
-            // 点餐端渲染
-            cartBox.style.display = state.cart.length > 0 ? 'flex' : 'none';
-            document.getElementById('cart-table-name').innerText = state.table || '未选桌号';
-            document.getElementById('cart-money').innerText = '¥ ' + state.cart.reduce((s, i) => s + i.price, 0);
-
-            let html = '<div class="table-list">';
-            state.tables.forEach(t => {
-                html += `<div class="table-card ${state.table === t ? 'selected' : ''}" onclick="state.table='${t}';render()">${t}</div>`;
-            });
-            html += '</div>';
-
-            html += '<div class="menu-list">';
-            state.menu.forEach(m => {
-                html += `
-                    <div class="dish-card" onclick="addDish(${m.id})">
-                        <div>
-                            <div class="dish-name">${m.name}</div>
-                            <div class="dish-price">¥${m.price}</div>
-                        </div>
-                        <div class="plus-icon">+</div>
-                    </div>`;
-            });
-            html += '</div>';
-
-            // 显示该桌订单状态
-            const myOrders = state.orders.filter(o => o.table === state.table);
-            if (myOrders.length > 0) {
-                html += '<div style="margin-top:30px; font-size:13px; color:#999; font-weight:bold;">当前桌订单状态：</div>';
-                myOrders.forEach(o => {
-                    html += `
-                        <div class="order-card">
-                            <div class="order-header">
-                                <b>${o.table}</b>
-                                <span class="status-badge">${o.status}</span>
-                            </div>
-                            <div style="font-size:14px; color:#666;">${o.items.map(it => it.name).join(' / ')}</div>
-                        </div>`;
-                });
-            }
-            content.innerHTML = html;
-
-        } else {
-            // 后厨端渲染
-            cartBox.style.display = 'none';
-            let html = '';
-            state.orders.forEach(o => {
-                html += `
-                    <div class="order-card">
-                        <div class="order-header">
-                            <b style="font-size:18px;">${o.table}</b>
-                            <button onclick="finishOrder('${o._id}')" style="background:#000; color:#fff; border:none; padding:5px 12px; border-radius:5px;">结账完成</button>
-                        </div>
-                        <div style="font-size:16px; padding:10px 0; line-height:1.6;">
-                            ${o.items.map(it => `· <b>${it.name}</b>`).join('<br>')}
-                        </div>
-                        <div style="text-align:right; font-size:13px; color:#e63946; font-weight:bold;">合计: ¥${o.total}</div>
-                    </div>`;
-            });
-            if (state.orders.length === 0) html = '<div class="loading-mask">暂时没有新订单</div>';
-            content.innerHTML = html;
-        }
+    function renderMenu() {
+        const container = document.getElementById('main-content');
+        let html = '<div style="padding:10px; font-weight:bold;">推荐菜品：</div>';
+        
+        MENU.forEach(item => {
+            html += `
+                <div class="menu-item">
+                    <div>
+                        <div style="font-weight:bold;">${item.name}</div>
+                        <div style="color:#e63946; font-size:14px;">¥${item.price}</div>
+                    </div>
+                    <button class="add-btn">+</button>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
     }
 
-    // 启动与循环刷新
-    start();
-    setInterval(fetchOrders, 10000); // 10秒刷一次
+    // 页面加载完立即执行
+    window.onload = initSystem;
 </script>
+
 </body>
 </html>
