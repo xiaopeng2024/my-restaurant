@@ -3,206 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>江西小炒 · 云端管理</title>
-    <!-- 仅引用核心 SDK -->
+    <title>江西小炒管理系统 v2.0</title>
+    <!-- 引入 SDK -->
     <script src="https://web-99.cdn.cloudbase.net/sdk/2.8.0/cloudbase.full.js"></script>
     <style>
-        /* 使用最基础的 CSS，确保任何手机都能显示红色 */
-        body { margin: 0; padding: 0; background-color: #f0f2f5; font-family: sans-serif; }
-        .header { background-color: #e63946; color: white; padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .tab-nav { display: flex; background: #fff; border-bottom: 1px solid #ddd; }
-        .tab-item { flex: 1; text-align: center; padding: 12px; font-size: 14px; color: #666; border-bottom: 2px solid transparent; }
-        .tab-item.active { color: #e63946; border-bottom: 2px solid #e63946; font-weight: bold; }
+        /* 所有的外观样式直接写死在这里 */
+        body { margin: 0; padding: 0; background-color: #f7f7f7; font-family: "PingFang SC", "Helvetica Neue", sans-serif; color: #333; }
+        .top-bar { background-color: #e63946; color: white; padding: 20px 15px; text-align: center; font-size: 20px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .nav-tabs { display: flex; background: white; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 99; }
+        .nav-item { flex: 1; text-align: center; padding: 15px; font-size: 14px; color: #888; border-bottom: 3px solid transparent; }
+        .nav-item.active { color: #e63946; border-bottom-color: #e63946; font-weight: bold; }
         
-        .container { padding: 10px; margin-bottom: 80px; }
-        .table-select { display: flex; overflow-x: auto; gap: 8px; padding: 10px 0; }
-        .table-box { background: white; padding: 8px 15px; border-radius: 5px; border: 1px solid #ddd; font-size: 13px; white-space: nowrap; }
-        .table-box.active { background: #e63946; color: white; border-color: #e63946; }
+        .section { padding: 15px; }
+        .table-list { display: flex; overflow-x: auto; gap: 10px; margin-bottom: 15px; padding-bottom: 5px; }
+        .table-card { background: white; padding: 10px 20px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; white-space: nowrap; }
+        .table-card.selected { background: #e63946; color: white; border-color: #e63946; }
         
-        .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .dish-name { font-size: 16px; font-weight: bold; color: #333; }
-        .dish-price { color: #e63946; font-size: 14px; margin-top: 5px; }
-        .add-btn { background: #e63946; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 20px; }
+        .menu-list { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        .dish-card { background: white; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #fff; }
+        .dish-card:active { background: #fafafa; border-color: #eee; }
+        .dish-name { font-size: 17px; font-weight: bold; margin-bottom: 4px; }
+        .dish-price { color: #e63946; font-size: 15px; font-weight: bold; }
+        .plus-icon { background: #e63946; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
         
-        .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #333; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .order-btn { background: #e63946; color: white; border: none; padding: 10px 25px; border-radius: 5px; font-weight: bold; }
+        .cart-float { position: fixed; bottom: 20px; left: 15px; right: 15px; background: #222; color: white; padding: 15px 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 1000; }
+        .btn-order { background: #e63946; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 16px; font-weight: bold; }
         
-        .order-list-item { background: white; margin-top: 10px; padding: 15px; border-radius: 8px; border-left: 5px solid #e63946; }
-        .status-tag { font-size: 11px; background: #eee; padding: 2px 6px; border-radius: 3px; }
+        .order-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 6px solid #e63946; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .order-header { display: flex; justify-content: space-between; border-bottom: 1px dashed #eee; padding-bottom: 10px; margin-bottom: 10px; }
+        .status-badge { font-size: 12px; background: #fff1f0; color: #e63946; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffa39e; }
+        
+        .loading-mask { padding: 50px; text-align: center; color: #999; }
     </style>
 </head>
 <body>
 
-<div class="header">🏮 江西小炒数字化系统</div>
+<div class="top-bar">🏮 江西小炒管理 (稳定版)</div>
 
-<div class="tab-nav">
-    <div id="tab-user" class="tab-item active" onclick="switchView('user')">客人点餐</div>
-    <div id="tab-admin" class="tab-item" onclick="switchView('admin')">后厨接单</div>
+<div class="nav-tabs">
+    <div id="tab-user" class="nav-item active" onclick="goView('user')">点餐端</div>
+    <div id="tab-admin" class="nav-item" onclick="goView('admin')">后厨端</div>
 </div>
 
-<div id="main" class="container">
-    <!-- 动态内容加载区 -->
-    <div style="text-align:center; color:#999; padding:50px;">系统启动中...</div>
+<div id="content" class="section">
+    <div class="loading-mask">系统初始化中，请稍候...</div>
 </div>
 
-<div id="footer" class="footer-bar" style="display:none;">
+<div id="cart-box" class="cart-float" style="display:none;">
     <div>
-        <span id="footer-table" style="font-size:12px; color:#aaa;">未选桌</span><br>
-        <span id="footer-total" style="font-size:18px; color:#e63946; font-weight:bold;">¥ 0</span>
+        <div id="cart-table-name" style="font-size:12px; color:#aaa;">请选桌号</div>
+        <div id="cart-money" style="font-size:20px; font-weight:bold; color:#e63946;">¥ 0</div>
     </div>
-    <button class="order-btn" onclick="submitOrder()">立即下单</button>
+    <button class="btn-order" onclick="doSubmit()">确定下单</button>
 </div>
 
 <script>
-    // 1. 初始化云开发 (请确认envId正确)
+    // --- 数据库配置 ---
     const envId = "my-jxxc-6g4w7jse94653bcc";
     const app = cloudbase.init({ env: envId });
     const db = app.database();
     
-    // 自动登录
-    async function initAuth() {
-        try {
-            const auth = app.auth();
-            if (!auth.hasLoginState()) await auth.anonymousAuthProvider().signIn();
-            loadData();
-        } catch(e) { alert("网络连接失败，请检查安全域名设置"); }
-    }
-
-    // 2. 基础数据
-    const MENU = [
-        {id:1, name:'辣椒炒肉', price:28},
-        {id:2, name:'小炒牛肉', price:45},
-        {id:3, name:'酸萝卜肥肠', price:38},
-        {id:4, name:'手撕包菜', price:16},
-        {id:5, name:'南昌拌粉', price:12},
-        {id:6, name:'瓦罐煨汤', price:15}
-    ];
-    const TABLES = ["1号桌", "2号桌", "3号桌", "5号桌", "打包1", "打包2"];
-
     let state = {
         view: 'user',
         table: '',
         cart: [],
-        orders: []
+        orders: [],
+        menu: [
+            {id: 1, name: '辣椒炒肉', price: 28},
+            {id: 2, name: '小炒牛肉', price: 45},
+            {id: 3, name: '酸萝卜肥肠', price: 38},
+            {id: 4, name: '手撕包菜', price: 16},
+            {id: 5, name: '南昌拌粉', price: 12},
+            {id: 6, name: '瓦罐煨汤', price: 15},
+            {id: 7, name: '白米饭', price: 2}
+        ],
+        tables: ["1号桌", "2号桌", "3号桌", "5号桌", "打包1", "打包2"]
     };
 
-    // 3. 核心逻辑
-    function switchView(v) {
-        state.view = v;
-        document.getElementById('tab-user').className = v === 'user' ? 'tab-item active' : 'tab-item';
-        document.getElementById('tab-admin').className = v === 'admin' ? 'tab-item active' : 'tab-item';
-        render();
-    }
-
-    function addToCart(id) {
-        const item = MENU.find(m => m.id === id);
-        state.cart.push(item);
-        render();
-    }
-
-    async function submitOrder() {
-        if(!state.table) return alert("请先点击上方选择桌号");
-        if(state.cart.length === 0) return alert("还没点菜呢");
-        
-        await db.collection('orders').add({
-            table: state.table,
-            items: state.cart,
-            total: state.cart.reduce((s,i)=>s+i.price, 0),
-            status: '待做',
-            time: Date.now()
-        });
-        state.cart = [];
-        alert("下单成功，后厨已收到！");
-        loadData();
-    }
-
-    async function loadData() {
-        const res = await db.collection('orders').orderBy('time', 'desc').get();
-        state.orders = res.data;
-        render();
-    }
-
-    async function deleteOrder(id) {
-        if(confirm("确定结账或删除？")) {
-            await db.collection('orders').doc(id).remove();
-            loadData();
+    // 初始化认证
+    async function start() {
+        try {
+            const auth = app.auth();
+            if (!auth.hasLoginState()) {
+                await auth.anonymousAuthProvider().signIn();
+            }
+            fetchOrders();
+        } catch (err) {
+            document.getElementById('content').innerHTML = `
+                <div style="color:red; padding:20px; text-align:center;">
+                    连接失败！可能是因为：<br>
+                    1. 没开通“匿名登录”<br>
+                    2. 没添加“Web安全域名”<br>
+                    <small style="color:#999">${err.message}</small>
+                </div>`;
         }
     }
 
-    // 4. 渲染界面
+    async function fetchOrders() {
+        try {
+            const res = await db.collection('orders').orderBy('time', 'desc').limit(20).get();
+            state.orders = res.data;
+            render();
+        } catch (e) { console.error(e); }
+    }
+
+    function goView(v) {
+        state.view = v;
+        document.getElementById('tab-user').className = v === 'user' ? 'nav-item active' : 'nav-item';
+        document.getElementById('tab-admin').className = v === 'admin' ? 'nav-item active' : 'nav-item';
+        render();
+    }
+
+    function addDish(id) {
+        const dish = state.menu.find(d => d.id === id);
+        state.cart.push(dish);
+        render();
+    }
+
+    async function doSubmit() {
+        if (!state.table) return alert("请先选桌号！");
+        if (state.cart.length === 0) return alert("菜单是空的");
+        
+        try {
+            await db.collection('orders').add({
+                table: state.table,
+                items: state.cart,
+                total: state.cart.reduce((s, i) => s + i.price, 0),
+                status: '待制作',
+                time: Date.now()
+            });
+            state.cart = [];
+            alert("下单成功！");
+            fetchOrders();
+        } catch (e) { alert("下单失败，请检查数据库权限"); }
+    }
+
+    async function finishOrder(id) {
+        if (confirm("确定结账吗？")) {
+            await db.collection('orders').doc(id).remove();
+            fetchOrders();
+        }
+    }
+
     function render() {
-        const main = document.getElementById('main');
-        const footer = document.getElementById('footer');
+        const content = document.getElementById('content');
+        const cartBox = document.getElementById('cart-box');
 
-        if(state.view === 'user') {
-            footer.style.display = state.cart.length > 0 ? 'flex' : 'none';
-            document.getElementById('footer-table').innerText = state.table || '未选桌';
-            document.getElementById('footer-total').innerText = '¥ ' + state.cart.reduce((s,i)=>s+i.price, 0);
+        if (state.view === 'user') {
+            // 点餐端渲染
+            cartBox.style.display = state.cart.length > 0 ? 'flex' : 'none';
+            document.getElementById('cart-table-name').innerText = state.table || '未选桌号';
+            document.getElementById('cart-money').innerText = '¥ ' + state.cart.reduce((s, i) => s + i.price, 0);
 
-            let html = '<div class="table-select">';
-            TABLES.forEach(t => {
-                html += `<div class="table-box ${state.table===t?'active':''}" onclick="state.table='${t}';render()">${t}</div>`;
+            let html = '<div class="table-list">';
+            state.tables.forEach(t => {
+                html += `<div class="table-card ${state.table === t ? 'selected' : ''}" onclick="state.table='${t}';render()">${t}</div>`;
             });
             html += '</div>';
 
-            MENU.forEach(m => {
+            html += '<div class="menu-list">';
+            state.menu.forEach(m => {
                 html += `
-                    <div class="card" onclick="addToCart(${m.id})">
+                    <div class="dish-card" onclick="addDish(${m.id})">
                         <div>
                             <div class="dish-name">${m.name}</div>
                             <div class="dish-price">¥${m.price}</div>
                         </div>
-                        <button class="add-btn">+</button>
-                    </div>
-                `;
+                        <div class="plus-icon">+</div>
+                    </div>`;
             });
+            html += '</div>';
 
-            // 展示当前桌正在做的菜
+            // 显示该桌订单状态
             const myOrders = state.orders.filter(o => o.table === state.table);
-            if(myOrders.length > 0) {
-                html += '<div style="margin-top:20px; color:#999; font-size:12px;">我的订单：</div>';
+            if (myOrders.length > 0) {
+                html += '<div style="margin-top:30px; font-size:13px; color:#999; font-weight:bold;">当前桌订单状态：</div>';
                 myOrders.forEach(o => {
                     html += `
-                        <div class="order-list-item">
-                            <div style="display:flex;justify-content:space-between">
-                                <b>${o.table}</b> <span class="status-tag">${o.status}</span>
+                        <div class="order-card">
+                            <div class="order-header">
+                                <b>${o.table}</b>
+                                <span class="status-badge">${o.status}</span>
                             </div>
-                            <div style="font-size:13px; color:#666; margin-top:5px;">
-                                ${o.items.map(it => it.name).join('，')}
-                            </div>
-                        </div>
-                    `;
+                            <div style="font-size:14px; color:#666;">${o.items.map(it => it.name).join(' / ')}</div>
+                        </div>`;
                 });
             }
-            main.innerHTML = html;
+            content.innerHTML = html;
 
         } else {
-            footer.style.display = 'none';
-            let html = '<div style="font-size:12px; color:#999; margin-bottom:10px;">后厨待办事项：</div>';
+            // 后厨端渲染
+            cartBox.style.display = 'none';
+            let html = '';
             state.orders.forEach(o => {
                 html += `
-                    <div class="order-list-item" style="border-left-color:#333">
-                        <div style="display:flex;justify-content:space-between; align-items:center;">
+                    <div class="order-card">
+                        <div class="order-header">
                             <b style="font-size:18px;">${o.table}</b>
-                            <button onclick="deleteOrder('${o._id}')" style="background:#333; color:#fff; border:none; padding:5px 10px; border-radius:4px; font-size:12px;">已上菜/结账</button>
+                            <button onclick="finishOrder('${o._id}')" style="background:#000; color:#fff; border:none; padding:5px 12px; border-radius:5px;">结账完成</button>
                         </div>
-                        <div style="font-size:16px; font-weight:bold; color:#000; margin-top:10px;">
-                            ${o.items.map(it => `· ${it.name}`).join('<br>')}
+                        <div style="font-size:16px; padding:10px 0; line-height:1.6;">
+                            ${o.items.map(it => `· <b>${it.name}</b>`).join('<br>')}
                         </div>
-                        <div style="margin-top:10px; text-align:right; font-size:12px; color:#e63946;">总计：¥${o.total}</div>
-                    </div>
-                `;
+                        <div style="text-align:right; font-size:13px; color:#e63946; font-weight:bold;">合计: ¥${o.total}</div>
+                    </div>`;
             });
-            if(state.orders.length === 0) html = '<div style="text-align:center; padding:50px; color:#ccc;">暂无新订单</div>';
-            main.innerHTML = html;
+            if (state.orders.length === 0) html = '<div class="loading-mask">暂时没有新订单</div>';
+            content.innerHTML = html;
         }
     }
 
-    // 启动
-    initAuth();
-    // 每10秒自动刷新一次数据
-    setInterval(loadData, 10000);
+    // 启动与循环刷新
+    start();
+    setInterval(fetchOrders, 10000); // 10秒刷一次
 </script>
-
 </body>
 </html>
