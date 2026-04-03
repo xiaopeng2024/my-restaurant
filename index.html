@@ -3,172 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>江西小炒 · 数字化云端管理</title>
+    <title>江西小炒 · 云端管理</title>
+    <!-- 仅引用核心 SDK -->
     <script src="https://web-99.cdn.cloudbase.net/sdk/2.8.0/cloudbase.full.js"></script>
     <style>
-        /* 直接把样式写在这里，不再依赖外部文件 */
-        body { margin: 0; font-family: -apple-system, sans-serif; background: #f8f9fa; }
-        header { background: #dc2626; color: white; padding: 15px; position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .nav-box { background: rgba(0,0,0,0.1); border-radius: 50px; padding: 4px; display: flex; }
-        .nav-btn { border: none; background: none; color: white; padding: 6px 15px; border-radius: 50px; font-size: 12px; font-weight: bold; cursor: pointer; }
-        .nav-btn.active { background: white; color: #dc2626; }
+        /* 使用最基础的 CSS，确保任何手机都能显示红色 */
+        body { margin: 0; padding: 0; background-color: #f0f2f5; font-family: sans-serif; }
+        .header { background-color: #e63946; color: white; padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .tab-nav { display: flex; background: #fff; border-bottom: 1px solid #ddd; }
+        .tab-item { flex: 1; text-align: center; padding: 12px; font-size: 14px; color: #666; border-bottom: 2px solid transparent; }
+        .tab-item.active { color: #e63946; border-bottom: 2px solid #e63946; font-weight: bold; }
         
-        .main-content { padding: 15px; padding-bottom: 100px; }
-        .table-bar { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; margin-bottom: 15px; }
-        .table-btn { border: 1px solid #eee; background: white; padding: 8px 15px; border-radius: 12px; font-size: 12px; white-space: nowrap; color: #999; }
-        .table-btn.active { background: #dc2626; color: white; border-color: #dc2626; }
+        .container { padding: 10px; margin-bottom: 80px; }
+        .table-select { display: flex; overflow-x: auto; gap: 8px; padding: 10px 0; }
+        .table-box { background: white; padding: 8px 15px; border-radius: 5px; border: 1px solid #ddd; font-size: 13px; white-space: nowrap; }
+        .table-box.active { background: #e63946; color: white; border-color: #e63946; }
         
-        .menu-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .food-item { background: white; padding: 15px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .food-info p { margin: 0; font-weight: bold; }
-        .food-price { color: #dc2626; font-size: 14px; margin-top: 4px !important; }
-        .add-btn { background: #f0f0f0; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #999; }
+        .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .dish-name { font-size: 16px; font-weight: bold; color: #333; }
+        .dish-price { color: #e63946; font-size: 14px; margin-top: 5px; }
+        .add-btn { background: #e63946; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 20px; }
         
-        .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: #1a1a1a; color: white; padding: 15px 25px; border-radius: 50px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .submit-btn { background: #dc2626; border: none; color: white; padding: 10px 25px; border-radius: 20px; font-weight: bold; }
+        .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #333; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .order-btn { background: #e63946; color: white; border: none; padding: 10px 25px; border-radius: 5px; font-weight: bold; }
         
-        .order-card { background: white; margin-top: 15px; padding: 20px; border-radius: 20px; border: 1px solid #f0f0f0; }
-        .dish-done { text-decoration: line-through; opacity: 0.3; }
-        .urgent { border: 2px solid #dc2626; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .order-list-item { background: white; margin-top: 10px; padding: 15px; border-radius: 8px; border-left: 5px solid #e63946; }
+        .status-tag { font-size: 11px; background: #eee; padding: 2px 6px; border-radius: 3px; }
     </style>
 </head>
 <body>
 
-<header>
-    <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:20px;">🏮</span>
-        <b style="letter-spacing:-1px;">江西小炒数字化管理</b>
-    </div>
-    <div class="nav-box">
-        <button id="btn-user" class="nav-btn active" onclick="setView('user')">点餐</button>
-        <button id="btn-admin" class="nav-btn" onclick="setView('admin')">后厨</button>
-    </div>
-</header>
+<div class="header">🏮 江西小炒数字化系统</div>
 
-<div class="main-content" id="app"></div>
+<div class="tab-nav">
+    <div id="tab-user" class="tab-item active" onclick="switchView('user')">客人点餐</div>
+    <div id="tab-admin" class="tab-item" onclick="switchView('admin')">后厨接单</div>
+</div>
 
-<div class="cart-bar" id="cart-float" style="display:none;">
+<div id="main" class="container">
+    <!-- 动态内容加载区 -->
+    <div style="text-align:center; color:#999; padding:50px;">系统启动中...</div>
+</div>
+
+<div id="footer" class="footer-bar" style="display:none;">
     <div>
-        <small id="cart-table" style="color: #666; font-size: 10px; display: block;">请选桌号</small>
-        <b id="cart-total" style="color: #dc2626; font-size: 20px;">¥ 0</b>
+        <span id="footer-table" style="font-size:12px; color:#aaa;">未选桌</span><br>
+        <span id="footer-total" style="font-size:18px; color:#e63946; font-weight:bold;">¥ 0</span>
     </div>
-    <button class="submit-btn" onclick="submitOrder()">确认下单</button>
+    <button class="order-btn" onclick="submitOrder()">立即下单</button>
 </div>
 
 <script>
-    // --- 配置您的环境 ID ---
+    // 1. 初始化云开发 (请确认envId正确)
     const envId = "my-jxxc-6g4w7jse94653bcc";
     const app = cloudbase.init({ env: envId });
     const db = app.database();
-
-    // 匿名登录
-    async function init() {
-        const auth = app.auth();
-        if (!auth.hasLoginState()) await auth.anonymousAuthProvider().signIn();
-        refresh();
+    
+    // 自动登录
+    async function initAuth() {
+        try {
+            const auth = app.auth();
+            if (!auth.hasLoginState()) await auth.anonymousAuthProvider().signIn();
+            loadData();
+        } catch(e) { alert("网络连接失败，请检查安全域名设置"); }
     }
-    init();
 
+    // 2. 基础数据
     const MENU = [
-        { id: 1, name: '辣椒炒肉', price: 28, cat: '爆炒' },
-        { id: 2, name: '小炒牛肉', price: 45, cat: '爆炒' },
-        { id: 3, name: '南昌拌粉', price: 12, cat: '主食' },
-        { id: 4, name: '瓦罐煨汤', price: 15, cat: '主食' }
+        {id:1, name:'辣椒炒肉', price:28},
+        {id:2, name:'小炒牛肉', price:45},
+        {id:3, name:'酸萝卜肥肠', price:38},
+        {id:4, name:'手撕包菜', price:16},
+        {id:5, name:'南昌拌粉', price:12},
+        {id:6, name:'瓦罐煨汤', price:15}
     ];
-    const TABLES = ["1号", "2号", "3号", "5号", "打包1", "打包2"];
+    const TABLES = ["1号桌", "2号桌", "3号桌", "5号桌", "打包1", "打包2"];
 
-    let state = { view: 'user', table: '', cart: [], orders: [] };
+    let state = {
+        view: 'user',
+        table: '',
+        cart: [],
+        orders: []
+    };
 
-    function setView(v) {
+    // 3. 核心逻辑
+    function switchView(v) {
         state.view = v;
-        document.getElementById('btn-user').className = v === 'user' ? 'nav-btn active' : 'nav-btn';
-        document.getElementById('btn-admin').className = v === 'admin' ? 'nav-btn active' : 'nav-btn';
-        refresh();
+        document.getElementById('tab-user').className = v === 'user' ? 'tab-item active' : 'tab-item';
+        document.getElementById('tab-admin').className = v === 'admin' ? 'tab-item active' : 'tab-item';
+        render();
     }
 
     function addToCart(id) {
-        const item = MENU.find(i => i.id === id);
+        const item = MENU.find(m => m.id === id);
         state.cart.push(item);
         render();
     }
 
     async function submitOrder() {
-        if(!state.table) return alert("请点击上方选择桌号！");
+        if(!state.table) return alert("请先点击上方选择桌号");
+        if(state.cart.length === 0) return alert("还没点菜呢");
+        
         await db.collection('orders').add({
             table: state.table,
-            items: state.cart.map(i => ({...i, done: false})),
-            total: state.cart.reduce((s, i) => s + i.price, 0),
-            status: 'pending',
+            items: state.cart,
+            total: state.cart.reduce((s,i)=>s+i.price, 0),
+            status: '待做',
             time: Date.now()
         });
         state.cart = [];
-        alert("下单成功！");
-        refresh();
+        alert("下单成功，后厨已收到！");
+        loadData();
     }
 
-    async function refresh() {
+    async function loadData() {
         const res = await db.collection('orders').orderBy('time', 'desc').get();
         state.orders = res.data;
         render();
     }
 
+    async function deleteOrder(id) {
+        if(confirm("确定结账或删除？")) {
+            await db.collection('orders').doc(id).remove();
+            loadData();
+        }
+    }
+
+    // 4. 渲染界面
     function render() {
-        const container = document.getElementById('app');
-        const cartFloat = document.getElementById('cart-float');
+        const main = document.getElementById('main');
+        const footer = document.getElementById('footer');
 
         if(state.view === 'user') {
-            cartFloat.style.display = state.cart.length > 0 ? 'flex' : 'none';
-            document.getElementById('cart-table').innerText = state.table || '未选桌号';
-            document.getElementById('cart-total').innerText = '¥ ' + state.cart.reduce((s,i)=>s+i.price, 0);
+            footer.style.display = state.cart.length > 0 ? 'flex' : 'none';
+            document.getElementById('footer-table').innerText = state.table || '未选桌';
+            document.getElementById('footer-total').innerText = '¥ ' + state.cart.reduce((s,i)=>s+i.price, 0);
 
-            container.innerHTML = `
-                <div class="table-bar">
-                    ${TABLES.map(t => `<div class="table-btn ${state.table===t?'active':''}" onclick="state.table='${t}';render()">${t}</div>`).join('')}
-                </div>
-                <div class="menu-grid">
-                    ${MENU.map(i => `
-                        <div class="food-item" onclick="addToCart(${i.id})">
-                            <div class="food-info"><p>${i.name}</p><p class="food-price">¥${i.price}</p></div>
-                            <div class="add-btn">+</div>
+            let html = '<div class="table-select">';
+            TABLES.forEach(t => {
+                html += `<div class="table-box ${state.table===t?'active':''}" onclick="state.table='${t}';render()">${t}</div>`;
+            });
+            html += '</div>';
+
+            MENU.forEach(m => {
+                html += `
+                    <div class="card" onclick="addToCart(${m.id})">
+                        <div>
+                            <div class="dish-name">${m.name}</div>
+                            <div class="dish-price">¥${m.price}</div>
                         </div>
-                    `).join('')}
-                </div>
-                <div style="margin-top:30px; font-size:12px; color:#999; font-weight:bold;">当前桌订单：</div>
-                ${state.orders.filter(o => o.table === state.table).map(o => `
-                    <div class="order-card">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
-                            <b>${o.status==='pending'?'等待中':'制作中'}</b>
-                            <b style="color:#dc2626;">¥${o.total}</b>
-                        </div>
-                        ${o.items.map(it => `<div style="font-size:14px;margin-bottom:5px;" class="${it.done?'dish-done':''}">${it.name}</div>`).join('')}
+                        <button class="add-btn">+</button>
                     </div>
-                `).join('')}
-            `;
+                `;
+            });
+
+            // 展示当前桌正在做的菜
+            const myOrders = state.orders.filter(o => o.table === state.table);
+            if(myOrders.length > 0) {
+                html += '<div style="margin-top:20px; color:#999; font-size:12px;">我的订单：</div>';
+                myOrders.forEach(o => {
+                    html += `
+                        <div class="order-list-item">
+                            <div style="display:flex;justify-content:space-between">
+                                <b>${o.table}</b> <span class="status-tag">${o.status}</span>
+                            </div>
+                            <div style="font-size:13px; color:#666; margin-top:5px;">
+                                ${o.items.map(it => it.name).join('，')}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            main.innerHTML = html;
+
         } else {
-            cartFloat.style.display = 'none';
-            container.innerHTML = state.orders.map(o => `
-                <div class="order-card ${o.status==='pending'?'urgent':''}">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:15px;">
-                        <span style="background:#000;color:#fff;padding:2px 10px;border-radius:5px;font-size:12px;">${o.table}</span>
-                        <button onclick="finishOrder('${o._id}')" style="background:#dc2626;border:none;color:#fff;border-radius:5px;padding:2px 10px;">结账</button>
+            footer.style.display = 'none';
+            let html = '<div style="font-size:12px; color:#999; margin-bottom:10px;">后厨待办事项：</div>';
+            state.orders.forEach(o => {
+                html += `
+                    <div class="order-list-item" style="border-left-color:#333">
+                        <div style="display:flex;justify-content:space-between; align-items:center;">
+                            <b style="font-size:18px;">${o.table}</b>
+                            <button onclick="deleteOrder('${o._id}')" style="background:#333; color:#fff; border:none; padding:5px 10px; border-radius:4px; font-size:12px;">已上菜/结账</button>
+                        </div>
+                        <div style="font-size:16px; font-weight:bold; color:#000; margin-top:10px;">
+                            ${o.items.map(it => `· ${it.name}`).join('<br>')}
+                        </div>
+                        <div style="margin-top:10px; text-align:right; font-size:12px; color:#e63946;">总计：¥${o.total}</div>
                     </div>
-                    ${o.items.map(it => `<div style="padding:10px 0; border-bottom:1px solid #eee;font-weight:bold;">${it.name}</div>`).join('')}
-                </div>
-            `).join('') || '<p style="text-align:center;color:#999;margin-top:50px;">暂无新订单</p>';
+                `;
+            });
+            if(state.orders.length === 0) html = '<div style="text-align:center; padding:50px; color:#ccc;">暂无新订单</div>';
+            main.innerHTML = html;
         }
     }
 
-    async function finishOrder(id) {
-        if(confirm("确定已结账并完成？")) {
-            const o = state.orders.find(ord => ord._id === id);
-            await db.collection('history').add({ table: o.table, total: o.total, time: Date.now() });
-            await db.collection('orders').doc(id).remove();
-            refresh();
-        }
-    }
-
-    setInterval(refresh, 8000);
+    // 启动
+    initAuth();
+    // 每10秒自动刷新一次数据
+    setInterval(loadData, 10000);
 </script>
+
 </body>
 </html>
